@@ -1,11 +1,15 @@
 {
   "name": "code-swe-agent",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Agentic coding assistant",
+  "main": "dist/index.js",
+  "bin": {
+    "code-swe": "dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
     "start": "npm run build && node dist/main.js",
+    "dev": "tsx src/cli.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -22,6 +26,7 @@
     "@langchain/google-genai": "^2.1.28",
     "@langchain/langgraph": "^1.2.9",
     "@langchain/ollama": "^1.2.6",
+    "commander": "^14.0.3",
     "zod": "^4.3.6"
   }
 }
