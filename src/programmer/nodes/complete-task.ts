@@ -1,5 +1,6 @@
 import { ToolMessage, HumanMessage } from '@langchain/core/messages';
 import type { AIMessage } from '@langchain/core/messages';
+import { emitAgent } from '../../ui/events';
 import type { ProgrammerState, PlanStep } from '../types';
 
 /**
@@ -15,11 +16,8 @@ import type { ProgrammerState, PlanStep } from '../types';
 export async function completeTaskNode(
   state: ProgrammerState
 ): Promise<Partial<ProgrammerState>> {
-  console.log('\n=== PROGRAMMER NODE: complete-task ===');
-
   const currentTask = state.plan.find((t) => !t.completed);
   if (!currentTask) {
-    console.log('No task to complete.');
     return {};
   }
 
@@ -32,7 +30,16 @@ export async function completeTaskNode(
   const taskSummary: string =
     (markCall?.args?.summary as string | undefined) ?? `Task ${currentTask.index} completed.`;
 
-  console.log(`  Task ${currentTask.index} completed: ${taskSummary}`);
+  emitAgent({ type: 'task_done', index: currentTask.index });
+
+  // Emit task_start for the next task if there is one
+  const updatedPlan: PlanStep[] = state.plan.map((t) =>
+    t.index === currentTask.index ? { ...t, completed: true } : t
+  );
+  const nextTask = updatedPlan.find(t => !t.completed);
+  if (nextTask) {
+    emitAgent({ type: 'task_start', index: nextTask.index, total: state.plan.length, description: nextTask.plan });
+  }
 
   // Close the pending tool call — LangChain requires every tool_call to have a
   // corresponding ToolMessage before the next human turn.
@@ -40,11 +47,6 @@ export async function completeTaskNode(
     tool_call_id: markCall?.id ?? 'mark_task_complete',
     content: `✅ Task ${currentTask.index} marked complete.`,
   });
-
-  // Mark the task as done in the plan
-  const updatedPlan: PlanStep[] = state.plan.map((t) =>
-    t.index === currentTask.index ? { ...t, completed: true } : t
-  );
 
   // Tell the model this task is done and to move on
   const contextMsg = new HumanMessage(

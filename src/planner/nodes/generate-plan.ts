@@ -2,6 +2,7 @@ import { ChatOllama } from '@langchain/ollama';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
+import { emitAgent } from '../../ui/events';
 import type { PlannerState, PlanStep } from '../types';
 
 const planSchema = z.object({
@@ -21,7 +22,6 @@ const planSchema = z.object({
 export async function generatePlanNode(
   state: PlannerState
 ): Promise<Partial<PlannerState>> {
-  console.log('\n=== PLANNER NODE: generate-plan ===');
 
   const llm = new ChatOllama({
     model: 'qwen3-coder:480b-cloud',
@@ -47,6 +47,7 @@ export async function generatePlanNode(
     })
     .join('\n\n');
 
+  emitAgent({ type: 'thinking' });
   const result = await llm.invoke([
     new SystemMessage(
       `You are a senior software engineer creating a concrete, implementation-only plan.
@@ -98,7 +99,6 @@ Create a concrete implementation plan (maximum 5 steps). Output valid JSON only.
     plan,
     completed: false,
   }));
-  steps.forEach((s) => console.log(`  ${s.index}. ${s.plan}`));
 
   return { plan: steps };
 }

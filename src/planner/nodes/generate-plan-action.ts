@@ -2,6 +2,7 @@ import { ChatOllama } from '@langchain/ollama';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 import { createGrepTool, createReadTool, createGlobTool, createCompletePlanningTool } from '../../tools';
+import { emitAgent } from '../../ui/events';
 import type { PlannerState } from '../types';
 
 const SYSTEM_PROMPT = `You are a senior software engineer investigating a codebase to plan an implementation.
@@ -88,7 +89,6 @@ Do NOT keep exploring after calling complete_planning.`;
 export async function generatePlanActionNode(
   state: PlannerState
 ): Promise<Partial<PlannerState>> {
-  console.log('\n=== PLANNER NODE: generate-plan-action ===');
 
   const grepTool = createGrepTool(state.repoPath);
   const readTool = createReadTool(state.repoPath);
@@ -125,6 +125,7 @@ export async function generatePlanActionNode(
       ? [new SystemMessage(SYSTEM_PROMPT), firstMessage]
       : [new SystemMessage(SYSTEM_PROMPT), ...trimmedHistory];
 
+  emitAgent({ type: 'thinking' });
   const response = await llm.invoke(inputMessages) as AIMessage;
 
   const newMessages =
@@ -135,14 +136,13 @@ export async function generatePlanActionNode(
   const toolCalls = response.tool_calls ?? [];
   if (toolCalls.length > 0) {
     const firstCall = toolCalls[0];
-    const toolName = firstCall?.name;
-    console.log(`LLM wants to call tool: ${toolName}`, firstCall?.args);
+    emitAgent({ type: 'tool_call', name: firstCall?.name ?? '', args: (firstCall?.args ?? {}) as Record<string, unknown> });
   } else {
     const content =
       typeof response.content === 'string'
         ? response.content
         : JSON.stringify(response.content);
-    console.log('No tool call — LLM response (reasoning):\n', content);
+    emitAgent({ type: 'llm_text', text: content });
   }
 
   return { messages: newMessages };

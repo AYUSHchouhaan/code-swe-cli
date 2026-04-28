@@ -1,6 +1,7 @@
 import { ToolMessage } from '@langchain/core/messages';
 import { AIMessage } from '@langchain/core/messages';
 import { createGrepTool, createReadTool, createGlobTool } from '../../tools';
+import { emitAgent } from '../../ui/events';
 import type { PlannerState } from '../types';
 
 /**
@@ -12,7 +13,6 @@ import type { PlannerState } from '../types';
 export async function takePlanActionNode(
   state: PlannerState
 ): Promise<Partial<PlannerState>> {
-  console.log('\n=== PLANNER NODE: take-plan-action ===');
 
   const grepTool = createGrepTool(state.repoPath);
   const readTool = createReadTool(state.repoPath);
@@ -31,7 +31,6 @@ export async function takePlanActionNode(
     | undefined;
 
   if (!lastMessage || !lastMessage.tool_calls || lastMessage.tool_calls.length === 0) {
-    console.warn('take-action-context called but no pending tool calls found.');
     return { messages: [] };
   }
 
@@ -41,7 +40,6 @@ export async function takePlanActionNode(
   const toolCall = lastMessage.tool_calls[0];
   if (!toolCall) return { messages: [] };
   const { id, name, args } = toolCall;
-  console.log(`  Executing tool: ${name}`, args);
 
   const t = toolMap[name];
   let result: string;
@@ -52,7 +50,7 @@ export async function takePlanActionNode(
     result = `Error invoking ${name}: ${err instanceof Error ? err.message : String(err)}`;
   }
 
-  console.log(`  Result (${name}):`, result.slice(0, 120));
+  emitAgent({ type: 'tool_result', name, result: result.slice(0, 300) });
   toolMessages.push(
     new ToolMessage({
       tool_call_id: id ?? name,

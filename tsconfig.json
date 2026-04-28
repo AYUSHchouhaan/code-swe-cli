@@ -8,8 +8,7 @@
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
     "module": "commonjs",
-    "moduleResolution": "node10",
-    "ignoreDeprecations": "6.0",
+    "moduleResolution": "bundler",
     "target": "esnext",
     "types": ["node"],
     // For nodejs:

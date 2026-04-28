@@ -1,6 +1,7 @@
 import { ChatOllama } from '@langchain/ollama';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { emitAgent } from '../../ui/events';
 import type { PlannerState } from '../types';
 
 /**
@@ -10,7 +11,6 @@ import type { PlannerState } from '../types';
  * These notes are passed to the programmer agent as helpful context.
  */
 export async function notesNode(state: PlannerState): Promise<Partial<PlannerState>> {
-  console.log('\n=== PLANNER NODE: notes ===');
 
   const llm = new ChatOllama({
     model: 'qwen3-coder:480b-cloud',
@@ -39,6 +39,7 @@ export async function notesNode(state: PlannerState): Promise<Partial<PlannerSta
     .map((s) => `${s.index}. ${s.plan}`)
     .join('\n');
 
+  emitAgent({ type: 'thinking' });
   const response = await llm.invoke([
     new SystemMessage(
       `You are a technical writer summarising a code-planning session for a programmer.
@@ -64,7 +65,6 @@ Write the summary notes now.`
   ]);
 
   const notes = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
-  console.log('Notes:', notes.slice(0, 200));
 
   return { notes };
 }

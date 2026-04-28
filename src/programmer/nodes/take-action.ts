@@ -1,5 +1,6 @@
 import { ToolMessage, AIMessage } from '@langchain/core/messages';
 import { createGrepTool, createReadTool, createEditTool, createNewFileTool, createGlobTool } from '../../tools';
+import { emitAgent } from '../../ui/events';
 import type { ProgrammerState } from '../types';
 
 /**
@@ -11,7 +12,6 @@ import type { ProgrammerState } from '../types';
 export async function takeActionNode(
   state: ProgrammerState
 ): Promise<Partial<ProgrammerState>> {
-  console.log('\n=== PROGRAMMER NODE: take-action ===');
 
   const grepTool = createGrepTool(state.repoPath);
   const readTool = createReadTool(state.repoPath);
@@ -34,7 +34,6 @@ export async function takeActionNode(
     | undefined;
 
   if (!lastAI || !lastAI.tool_calls || lastAI.tool_calls.length === 0) {
-    console.warn('take-action called but no pending tool calls found.');
     return { messages: [] };
   }
 
@@ -42,7 +41,6 @@ export async function takeActionNode(
   const toolCall = lastAI.tool_calls[0];
   if (!toolCall) return { messages: [] };
   const { id, name, args } = toolCall;
-  console.log(`  Executing tool: ${name}`, args);
 
   const t = toolMap[name];
   let result: string;
@@ -56,7 +54,7 @@ export async function takeActionNode(
     result = `Unknown tool: ${name}`;
   }
 
-  console.log(`  Result (${name}):`, result.slice(0, 150));
+  emitAgent({ type: 'tool_result', name, result: result.slice(0, 300) });
 
   const toolMsg = new ToolMessage({
     tool_call_id: id ?? name,

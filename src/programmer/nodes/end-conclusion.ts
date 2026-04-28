@@ -1,6 +1,7 @@
 import { ChatOllama } from '@langchain/ollama';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { emitAgent } from '../../ui/events';
 import type { ProgrammerState } from '../types';
 
 /**
@@ -11,7 +12,6 @@ import type { ProgrammerState } from '../types';
 export async function endConclusionNode(
   state: ProgrammerState
 ): Promise<Partial<ProgrammerState>> {
-  console.log('\n=== PROGRAMMER NODE: end-conclusion ===');
 
   const llm = new ChatOllama({
     model: 'qwen3-coder:480b-cloud',
@@ -39,6 +39,7 @@ export async function endConclusionNode(
     .slice(-10)
     .join('\n');
 
+  emitAgent({ type: 'thinking' });
   const response = await llm.invoke([
     new SystemMessage(
       'You are summarising a completed coding session. Write a clear, concise summary (3-5 sentences) of all changes made.'
@@ -59,7 +60,6 @@ Write the final summary now.`
   const summary =
     typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
 
-  console.log('Final summary:', summary);
-
+  // summary is emitted from cli.ts via the 'done' event after programmerGraph completes
   return { summary };
 }

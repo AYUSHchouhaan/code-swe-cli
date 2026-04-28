@@ -2,6 +2,7 @@ import { ChatOllama } from '@langchain/ollama';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 import { createGrepTool, createReadTool, createEditTool, createNewFileTool, createGlobTool, createMarkTaskCompleteTool } from '../../tools';
+import { emitAgent } from '../../ui/events';
 import type { ProgrammerState } from '../types';
 
 /**
@@ -93,15 +94,10 @@ Always check it before making a tool call to avoid repetition.`;
 export async function generateActionNode(
   state: ProgrammerState
 ): Promise<Partial<ProgrammerState>> {
-  console.log('\n=== PROGRAMMER NODE: generate-action ===');
-
   const currentTask = state.plan.find((t) => !t.completed);
   if (!currentTask) {
-    console.log('No incomplete tasks found.');
     return {};
   }
-
-  console.log(`Working on task ${currentTask.index}: ${currentTask.plan}`);
 
   const grepTool = createGrepTool(state.repoPath);
   const readTool = createReadTool(state.repoPath);
@@ -143,6 +139,7 @@ export async function generateActionNode(
       ? [new SystemMessage(systemPrompt), firstTaskMessage]
       : [new SystemMessage(systemPrompt), ...trimmedHistory];
 
+  emitAgent({ type: 'thinking' });
   const response = await llm.invoke(inputMessages) as AIMessage;
 
   const newMessages =
@@ -152,13 +149,13 @@ export async function generateActionNode(
 
   const toolCalls = response.tool_calls ?? [];
   if (toolCalls.length > 0) {
-    console.log(`Tool call: ${toolCalls[0]?.name}`, toolCalls[0]?.args);
+    emitAgent({ type: 'tool_call', name: toolCalls[0]?.name ?? '', args: (toolCalls[0]?.args ?? {}) as Record<string, unknown> });
   } else {
     const content =
       typeof response.content === 'string'
         ? response.content
         : JSON.stringify(response.content);
-    console.log('No tool call — LLM response (reasoning):\n', content);
+    emitAgent({ type: 'llm_text', text: content });
   }
 
   return { messages: newMessages };

@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import path from 'path';
+import { createElement } from 'react';
+import { render } from 'ink';
+import { App } from './ui/App';
+import { emitAgent } from './ui/events';
 import { plannerGraph } from './planner/index';
 import { programmerGraph } from './programmer/index';
 
@@ -18,36 +22,35 @@ program
   .action(async (task: string, options: { path: string }) => {
     const repoPath = path.resolve(options.path);
 
-    console.log('\n=== SWE Agent ===');
-    console.log(`Repo : ${repoPath}`);
-    console.log(`Task : ${task}\n`);
+    const { unmount } = render(createElement(App, { task, repoPath }));
 
-    // ── Planning phase ──────────────────────────────────────
-    console.log('--- Planning phase ---');
-    let plannerResult;
     try {
-      plannerResult = await plannerGraph.invoke({
+      // ── Planning phase ─────────────────────────────────────
+      emitAgent({ type: 'phase', phase: 'planning' });
+      const plannerResult = await plannerGraph.invoke({
         query: task,
         repoPath,
         messages: [],
         plan: [],
         notes: '',
       });
-    } catch (err) {
-      console.error('Planner failed:', err instanceof Error ? err.message : err);
-      process.exit(1);
-    }
 
-    console.log('\nPlan:');
-    for (const step of plannerResult.plan) {
-      console.log(`  [${step.index}] ${step.plan}`);
-    }
+      emitAgent({ type: 'plan', steps: plannerResult.plan });
 
-    // ── Programming phase ────────────────────────────────────
-    console.log('\n--- Programming phase ---');
-    let programmerResult;
-    try {
-      programmerResult = await programmerGraph.invoke({
+      // ── Programming phase ───────────────────────────────────
+      emitAgent({ type: 'phase', phase: 'programming' });
+
+      const firstTask = plannerResult.plan[0];
+      if (firstTask) {
+        emitAgent({
+          type: 'task_start',
+          index: firstTask.index,
+          total: plannerResult.plan.length,
+          description: firstTask.plan,
+        });
+      }
+
+      const programmerResult = await programmerGraph.invoke({
         query: task,
         repoPath,
         messages: [],
@@ -56,13 +59,17 @@ program
         taskActionsCount: 0,
         summary: '',
       });
+
+      emitAgent({ type: 'done', summary: programmerResult.summary });
     } catch (err) {
-      console.error('Programmer failed:', err instanceof Error ? err.message : err);
-      process.exit(1);
+      emitAgent({ type: 'error', message: err instanceof Error ? err.message : String(err) });
     }
 
-    console.log('\n=== Done ===');
-    console.log(programmerResult.summary);
+    // Give ink a moment to render the final state
+    await new Promise(r => setTimeout(r, 300));
+    unmount();
+    process.exit(0);
   });
 
 program.parse(process.argv);
+
