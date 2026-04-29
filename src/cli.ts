@@ -5,7 +5,6 @@ import { createElement } from 'react';
 import { render } from 'ink';
 import { App } from './ui/App';
 import { emitAgent } from './ui/events';
-import { plannerGraph } from './planner/index';
 import { programmerGraph } from './programmer/index';
 
 const program = new Command();
@@ -16,58 +15,58 @@ program
   .version('1.0.0');
 
 program
-  .command('run <task>')
-  .description('Run the coding agent on the current directory (or --path)')
+  .command('run')
+  .description('Open interactive CLI and run the coding agent')
   .option('-p, --path <dir>', 'Path to the project (defaults to cwd)', process.cwd())
-  .action(async (task: string, options: { path: string }) => {
+  .action(async (options: { path: string }) => {
     const repoPath = path.resolve(options.path);
+    let activeAbortController: AbortController | null = null;
 
-    const { unmount } = render(createElement(App, { task, repoPath }));
-
-    try {
-      // ── Planning phase ─────────────────────────────────────
-      emitAgent({ type: 'phase', phase: 'planning' });
-      const plannerResult = await plannerGraph.invoke({
-        query: task,
-        repoPath,
-        messages: [],
-        plan: [],
-        notes: '',
-      });
-
-      emitAgent({ type: 'plan', steps: plannerResult.plan });
-
-      // ── Programming phase ───────────────────────────────────
-      emitAgent({ type: 'phase', phase: 'programming' });
-
-      const firstTask = plannerResult.plan[0];
-      if (firstTask) {
-        emitAgent({
-          type: 'task_start',
-          index: firstTask.index,
-          total: plannerResult.plan.length,
-          description: firstTask.plan,
-        });
+    const runQuery = async (query: string, interruptCurrent: boolean) => {
+      if (interruptCurrent && activeAbortController) {
+        activeAbortController.abort();
       }
 
-      const programmerResult = await programmerGraph.invoke({
-        query: task,
+      const controller = new AbortController();
+      activeAbortController = controller;
+
+      try {
+        const result = await programmerGraph.invoke(
+          {
+            query,
+            repoPath,
+            notes: '',
+            messages: [],
+            taskActionsCount: 0,
+            summary: '',
+          },
+          { signal: controller.signal }
+        );
+
+        emitAgent({ type: 'done', summary: result.summary });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.toLowerCase().includes('abort')) {
+          emitAgent({ type: 'llm_text', text: 'Previous request stopped. Starting the new one.' });
+          return;
+        }
+        emitAgent({ type: 'error', message });
+      } finally {
+        if (activeAbortController === controller) {
+          activeAbortController = null;
+        }
+      }
+    };
+
+    const { waitUntilExit } = render(
+      createElement(App, {
         repoPath,
-        messages: [],
-        plan: plannerResult.plan,
-        notes: plannerResult.notes,
-        taskActionsCount: 0,
-        summary: '',
-      });
+        onSubmit: async (query: string) => runQuery(query, false),
+        onInterruptSubmit: async (query: string) => runQuery(query, true),
+      })
+    );
 
-      emitAgent({ type: 'done', summary: programmerResult.summary });
-    } catch (err) {
-      emitAgent({ type: 'error', message: err instanceof Error ? err.message : String(err) });
-    }
-
-    // Give ink a moment to render the final state
-    await new Promise(r => setTimeout(r, 300));
-    unmount();
+    await waitUntilExit();
     process.exit(0);
   });
 

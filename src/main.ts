@@ -1,4 +1,3 @@
-import { plannerGraph } from './planner/index';
 import { programmerGraph } from './programmer/index';
 
 async function main() {
@@ -9,29 +8,14 @@ console.log('=== SWE Agent ===');
 console.log(`Repo : ${repoPath}`);
 console.log(`Task : ${query}\n`);
 
-// --- Planning phase ---
-console.log('--- Planning phase ---');
-const plannerResult = await plannerGraph.invoke({
-  query,
-  repoPath,
-  messages: [],
-  plan: [],
-  notes: '',
-});
-
-console.log('\nPlan:');
-for (const step of plannerResult.plan) {
-  console.log(`  [${step.index}] ${step.plan}`);
-}
-
 // --- Programming phase ---
-console.log('\n--- Programming phase ---');
+console.log('--- Programming phase ---');
+
 const programmerResult = await programmerGraph.invoke({
   query,
   repoPath,
+  notes: '',
   messages: [],
-  plan: plannerResult.plan,
-  notes: plannerResult.notes,
   taskActionsCount: 0,
   summary: '',
 });

@@ -36,21 +36,6 @@ function routeAfterGenerateAction(state: ProgrammerState): string {
   return 'reasoning-thinking';
 }
 
-/**
- * Conditional edge from complete-task:
- * - If there are still incomplete tasks → generate-action
- * - If all tasks done → end-conclusion
- */
-function routeAfterCompleteTask(state: ProgrammerState): string {
-  const hasIncomplete = state.plan.some((t) => !t.completed);
-  if (hasIncomplete) {
-    console.log('  → more tasks remaining, back to generate-action');
-    return 'generate-action';
-  }
-  console.log('  → all tasks done, going to end-conclusion');
-  return 'end-conclusion';
-}
-
 const workflow = new StateGraph(ProgrammerStateAnnotation)
   .addNode('generate-action', generateActionNode)
   .addNode('take-action', takeActionNode)
@@ -68,11 +53,8 @@ const workflow = new StateGraph(ProgrammerStateAnnotation)
   .addEdge('take-action', 'generate-action')
   // After reasoning, loop back to generate-action
   .addEdge('reasoning-thinking', 'generate-action')
-  // After completing a task, check if more remain
-  .addConditionalEdges('complete-task', routeAfterCompleteTask, {
-    'generate-action': 'generate-action',
-    'end-conclusion': 'end-conclusion',
-  })
+  // Single-task flow: complete-task always ends with conclusion
+  .addEdge('complete-task', 'end-conclusion')
   .addEdge('end-conclusion', END);
 
 export const programmerGraph = workflow.compile();

@@ -10,11 +10,11 @@ import type { ProgrammerState } from '../types';
  * explicitly stated at the top, making it impossible for the LLM to lose
  * track of what it is supposed to be working on.
  */
-function buildSystemPrompt(taskIndex: number, taskDescription: string): string {
+function buildSystemPrompt(taskDescription: string): string {
   return `You are an expert software engineer implementing a specific task in a real codebase.
 
 ════════════════════════════════════════════
-CURRENT TASK  (Task ${taskIndex})
+CURRENT TASK
 ${taskDescription}
 ════════════════════════════════════════════
 
@@ -33,7 +33,7 @@ STRICT RULES — FOLLOW EXACTLY
 
 1. ONLY READ FILES THAT ARE DIRECTLY NEEDED FOR THIS TASK.
    • Pass all needed and relevant files in ONE read call (max 4 paths).
-   • If the task description + context notes already tell you what to do, skip reading and edit immediately.
+  • If the task description already tells you what to do, skip reading and edit immediately.
    • Do NOT explore the codebase out of curiosity.
 
 2. NEVER READ THESE — always irrelevant:
@@ -45,7 +45,7 @@ STRICT RULES — FOLLOW EXACTLY
    Check message history before every tool call. If you already read a file or ran a grep, skip it.
 
 4. MAKE THE CODE CHANGE AS FAST AS POSSIBLE.
-   • The planner already researched the codebase — trust the task description and context notes.
+  • Trust the task description and execute directly.
    • If the file to edit is clear from the task, go straight to read → edit.
    • If you need to create a new file, go straight to create_file.
 
@@ -94,11 +94,6 @@ Always check it before making a tool call to avoid repetition.`;
 export async function generateActionNode(
   state: ProgrammerState
 ): Promise<Partial<ProgrammerState>> {
-  const currentTask = state.plan.find((t) => !t.completed);
-  if (!currentTask) {
-    return {};
-  }
-
   const grepTool = createGrepTool(state.repoPath);
   const readTool = createReadTool(state.repoPath);
   const editTool = createEditTool(state.repoPath);
@@ -121,17 +116,13 @@ export async function generateActionNode(
   //   temperature: 0,
   // }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, markCompleteTool]);
 
-  const planOverview = state.plan
-    .map((t) => `  ${t.index}. [${t.completed ? '✅' : '⬜'}] ${t.plan}`)
-    .join('\n');
-
   const messageHistory = state.messages;
   const trimmedHistory = messageHistory.slice(-30);
 
-  const systemPrompt = buildSystemPrompt(currentTask.index, currentTask.plan);
+  const systemPrompt = buildSystemPrompt(state.query);
 
   const firstTaskMessage = new HumanMessage(
-    `Query: "${state.query}"\n\nContext Notes from Planner:\n${state.notes}\n\nTask Plan:\n${planOverview}\n\n--- CURRENT TASK ---\nTask ${currentTask.index}: ${currentTask.plan}\n\nStart implementing this task now. Go directly to the code change — do not over-investigate.`
+    `Query: "${state.query}"\n\nNotes:\n${state.notes || '(none)'}\n\nStart implementing this now. Go directly to the code change — do not over-investigate.`
   );
 
   const inputMessages =

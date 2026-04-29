@@ -21,16 +21,12 @@ export async function endConclusionNode(
     numPredict: 8192,
   });
 
-  // Google Gemini alternative — comment out Ollama above and uncomment below
+  // Google Gemini alternative
   // const llm = new ChatGoogleGenerativeAI({
   //   model: 'gemini-2.5-pro-exp-03-25',
   //   apiKey: process.env.GOOGLE_API_KEY,
   //   temperature: 0,
   // });
-
-  const planOverview = state.plan
-    .map((t) => `${t.index}. [✅] ${t.plan}`)
-    .join('\n');
 
   const conversationSummary = state.messages
     .filter((m) => m.getType() === 'human')
@@ -47,8 +43,8 @@ export async function endConclusionNode(
     new HumanMessage(
       `Original Query: "${state.query}"
 
-Completed Plan:
-${planOverview}
+Notes:
+${state.notes || '(none)'}
 
 Key Events:
 ${conversationSummary}

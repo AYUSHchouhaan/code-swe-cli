@@ -1,8 +1,5 @@
 import { Annotation } from '@langchain/langgraph';
 import { BaseMessage } from '@langchain/core/messages';
-import type { PlanStep } from '../planner/types';
-
-export type { PlanStep };
 
 export const ProgrammerStateAnnotation = Annotation.Root({
   /** The user's original query */
@@ -11,13 +8,7 @@ export const ProgrammerStateAnnotation = Annotation.Root({
   /** Absolute path to the repo on disk */
   repoPath: Annotation<string>,
 
-  /** Task plan from the planner agent — each entry has index, plan, completed */
-  plan: Annotation<PlanStep[]>({
-    reducer: (_, update) => update,
-    default: () => [],
-  }),
-
-  /** Context notes from the planner agent */
+  /** Optional execution notes/context to guide implementation */
   notes: Annotation<string>({
     reducer: (_, update) => update,
     default: () => '',
