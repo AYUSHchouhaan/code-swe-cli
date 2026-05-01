@@ -1,7 +1,7 @@
 import { ChatOllama } from '@langchain/ollama';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
-import { createGrepTool, createReadTool, createEditTool, createNewFileTool, createGlobTool, createMarkTaskCompleteTool } from '../../tools';
+import { createGrepTool, createReadTool, createEditTool, createNewFileTool, createGlobTool, createMarkTaskCompleteTool, createBashTool } from '../../tools';
 import { emitAgent } from '../../ui/events';
 import type { ProgrammerState } from '../types';
 
@@ -24,6 +24,7 @@ Tools available:
   read              → read up to 4 files at once — pass an array of relevant paths
   edit              → modify an EXISTING file (exact string replacement)
   create_file       → create a NEW file with full content
+  bash             → run bash commands in repo root (quick checks only)
   mark_task_complete → call ONLY when the task is fully implemented
 
 ════════════════════════════════════════════
@@ -100,21 +101,23 @@ export async function generateActionNode(
   const createFileTool = createNewFileTool(state.repoPath);
   const globTool = createGlobTool(state.repoPath);
   const markCompleteTool = createMarkTaskCompleteTool();
+  const bashTool = createBashTool(state.repoPath);
 
   const llm = new ChatOllama({
     model: 'qwen3-coder:480b-cloud',
+    // model: 'qwen2.5-coder:7b', 
     temperature: 0.1,
     baseUrl: 'http://localhost:11434',
     numCtx: 131072,
     numPredict: 32768,
-  }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, markCompleteTool]);
+  }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool, markCompleteTool]);
 
   // Google Gemini alternative — comment out Ollama above and uncomment below
   // const llm = new ChatGoogleGenerativeAI({
   //   model: 'gemini-2.5-pro-exp-03-25',
   //   apiKey: process.env.GOOGLE_API_KEY,
   //   temperature: 0,
-  // }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, markCompleteTool]);
+  // }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool, markCompleteTool]);
 
   const messageHistory = state.messages;
   const trimmedHistory = messageHistory.slice(-30);
