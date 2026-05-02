@@ -168,7 +168,6 @@ export function App({
     setInput('');
     setConfirmQuery(null);
     setRunning(true);
-    setLines([]);
     addLine({ kind: 'user_query', text: normalized });
 
     const runner = interrupt ? onInterruptSubmit : onSubmit;
@@ -266,6 +265,28 @@ export function App({
         <Text dimColor>{repoPath}</Text>
       </Box>
 
+      <Box flexDirection="column" marginTop={1}>
+        {lines.length > 0 ? (
+          lines.map(l => <Line key={l.id} line={l} />)
+        ) : (
+          <Text dimColor>Waiting for your first query...</Text>
+        )}
+      </Box>
+
+      <Box flexGrow={1} />
+
+      {confirmQuery && (
+        <Box marginTop={1}>
+          <Text color="yellow">Current run is active. Press </Text>
+          <Text bold color="green">c</Text>
+          <Text color="yellow"> to continue current or </Text>
+          <Text bold color="red">o</Text>
+          <Text color="yellow"> to stop and start: {confirmQuery}</Text>
+        </Box>
+      )}
+
+      <StatusBar running={running} confirmQuery={confirmQuery} />
+
       <Box marginTop={1} flexDirection="column">
         <Text dimColor>{SEP}</Text>
         <Box>
@@ -283,24 +304,6 @@ export function App({
         </Box>
         <Text dimColor>{SEP}</Text>
       </Box>
-
-      <StatusBar running={running} confirmQuery={confirmQuery} />
-
-      {confirmQuery && (
-        <Box marginTop={1}>
-          <Text color="yellow">Current run is active. Press </Text>
-          <Text bold color="green">c</Text>
-          <Text color="yellow"> to continue current or </Text>
-          <Text bold color="red">o</Text>
-          <Text color="yellow"> to stop and start: {confirmQuery}</Text>
-        </Box>
-      )}
-
-      {lines.length > 0 && (
-        <Box flexDirection="column" marginTop={1}>
-          {lines.map(l => <Line key={l.id} line={l} />)}
-        </Box>
-      )}
     </Box>
   );
 }

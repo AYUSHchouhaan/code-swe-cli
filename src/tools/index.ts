@@ -5,3 +5,4 @@ export { createNewFileTool } from './create-file';
 export { createGlobTool } from './glob';
 export { createCompletePlanningTool } from './complete-planning';
 export { createMarkTaskCompleteTool } from './mark-task-complete';
+export { createBashTool } from './bash';

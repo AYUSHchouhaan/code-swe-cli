@@ -28,15 +28,6 @@ export const ProgrammerStateAnnotation = Annotation.Root({
     reducer: (_, update) => update,
     default: () => '',
   }),
-
-  /**
-   * Counts how many tool calls (take-action executions) have run for the
-   * current task. Incremented by take-action, reset to 0 by complete-task.
-   */
-  taskActionsCount: Annotation<number>({
-    reducer: (_, update) => update,
-    default: () => 0,
-  }),
 });
 
 export type ProgrammerState = typeof ProgrammerStateAnnotation.State;

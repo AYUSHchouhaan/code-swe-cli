@@ -16,7 +16,6 @@ const programmerResult = await programmerGraph.invoke({
   repoPath,
   notes: '',
   messages: [],
-  taskActionsCount: 0,
   summary: '',
 });
 

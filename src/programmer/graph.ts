@@ -5,14 +5,13 @@ import type { ProgrammerState } from './types';
 import {
   generateActionNode,
   takeActionNode,
-  completeTaskNode,
   endConclusionNode,
   reasoningThinkingNode,
 } from './nodes';
 
 /**
  * Conditional edge from generate-action:
- * - mark_task_complete tool call → complete-task
+ * - mark_task_complete tool call → end-conclusion
  * - other tool call              → take-action
  * - plain text (reasoning)       → reasoning-thinking
  */
@@ -24,8 +23,8 @@ function routeAfterGenerateAction(state: ProgrammerState): string {
   if (lastAI?.tool_calls && lastAI.tool_calls.length > 0) {
     const toolName = lastAI.tool_calls[0]?.name;
     if (toolName === 'mark_task_complete') {
-      console.log('  → routing to complete-task (mark_task_complete called)');
-      return 'complete-task';
+      console.log('  → routing to end-conclusion (mark_task_complete called)');
+      return 'end-conclusion';
     }
     console.log(`  → routing to take-action (tool: ${toolName})`);
     return 'take-action';
@@ -39,22 +38,19 @@ function routeAfterGenerateAction(state: ProgrammerState): string {
 const workflow = new StateGraph(ProgrammerStateAnnotation)
   .addNode('generate-action', generateActionNode)
   .addNode('take-action', takeActionNode)
-  .addNode('complete-task', completeTaskNode)
   .addNode('reasoning-thinking', reasoningThinkingNode)
   .addNode('end-conclusion', endConclusionNode)
   // ── edges ──
   .addEdge(START, 'generate-action')
   .addConditionalEdges('generate-action', routeAfterGenerateAction, {
     'take-action': 'take-action',
-    'complete-task': 'complete-task',
+    'end-conclusion': 'end-conclusion',
     'reasoning-thinking': 'reasoning-thinking',
   })
   // After executing a tool, loop back to generate-action
   .addEdge('take-action', 'generate-action')
   // After reasoning, loop back to generate-action
   .addEdge('reasoning-thinking', 'generate-action')
-  // Single-task flow: complete-task always ends with conclusion
-  .addEdge('complete-task', 'end-conclusion')
   .addEdge('end-conclusion', END);
 
 export const programmerGraph = workflow.compile();

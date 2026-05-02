@@ -110,14 +110,14 @@ export async function generateActionNode(
     baseUrl: 'http://localhost:11434',
     numCtx: 131072,
     numPredict: 32768,
-  }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool, markCompleteTool]);
+  }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool]);
 
   // Google Gemini alternative — comment out Ollama above and uncomment below
   // const llm = new ChatGoogleGenerativeAI({
   //   model: 'gemini-2.5-pro-exp-03-25',
   //   apiKey: process.env.GOOGLE_API_KEY,
   //   temperature: 0,
-  // }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool, markCompleteTool]);
+  // }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool]);
 
   const messageHistory = state.messages;
   const trimmedHistory = messageHistory.slice(-30);

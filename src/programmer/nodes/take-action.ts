@@ -63,5 +63,5 @@ export async function takeActionNode(
     content: result,
   });
 
-  return { messages: [toolMsg], taskActionsCount: state.taskActionsCount + 1 };
+  return { messages: [toolMsg] };
 }

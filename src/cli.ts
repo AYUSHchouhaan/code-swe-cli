@@ -37,7 +37,6 @@ program
             repoPath,
             notes: '',
             messages: [],
-            taskActionsCount: 0,
             summary: '',
           },
           { signal: controller.signal }
