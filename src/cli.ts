@@ -39,7 +39,7 @@ program
             messages: [],
             summary: '',
           },
-          { signal: controller.signal }
+          { signal: controller.signal, recursionLimit: 100 }
         );
 
         emitAgent({ type: 'done', summary: result.summary });

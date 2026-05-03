@@ -2,6 +2,7 @@ import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import path from 'path';
 
 const execFileAsync = promisify(execFile);
 
@@ -20,6 +21,40 @@ function truncateOutput(text: string, max = 8000): string {
   return `${text.slice(0, max)}\n...[truncated]`;
 }
 
+type Runner = {
+  exe: string;
+  args: string[];
+  label: 'bash' | 'powershell';
+};
+
+function getCommandRunners(command: string): Runner[] {
+  if (process.platform !== 'win32') {
+    return [{ exe: 'bash', args: ['-lc', command], label: 'bash' }];
+  }
+
+  const programFiles = process.env.ProgramFiles ?? 'C:\\Program Files';
+  const programFilesX86 = process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)';
+  const gitBashCandidates = [
+    path.join(programFiles, 'Git', 'bin', 'bash.exe'),
+    path.join(programFiles, 'Git', 'usr', 'bin', 'bash.exe'),
+    path.join(programFilesX86, 'Git', 'bin', 'bash.exe'),
+    path.join(programFilesX86, 'Git', 'usr', 'bin', 'bash.exe'),
+  ];
+
+  const runners: Runner[] = [{ exe: 'bash', args: ['-lc', command], label: 'bash' }];
+  for (const candidate of gitBashCandidates) {
+    runners.push({ exe: candidate, args: ['-lc', command], label: 'bash' });
+  }
+  runners.push({ exe: 'powershell.exe', args: ['-NoProfile', '-NonInteractive', '-Command', command], label: 'powershell' });
+  return runners;
+}
+
+function isMissingBashError(error: NodeJS.ErrnoException): boolean {
+  if (error.code === 'ENOENT') return true;
+  const message = `${error.message ?? ''}\n${String((error as { stderr?: string }).stderr ?? '')}`.toLowerCase();
+  return message.includes('execvpe(/bin/bash) failed') || message.includes('no such file or directory');
+}
+
 export function createBashTool(repoPath: string) {
   return tool(
     async ({ command, timeoutMs }: { command: string; timeoutMs?: number }) => {
@@ -32,41 +67,69 @@ export function createBashTool(repoPath: string) {
       }
 
       const timeout = Math.max(1000, Math.min(timeoutMs ?? 12000, 60000));
+      const runners = getCommandRunners(trimmed);
+      let lastError: (NodeJS.ErrnoException & { stdout?: string; stderr?: string; code?: number | string }) | null = null;
 
-      try {
-        const { stdout, stderr } = await execFileAsync(
-          'bash',
-          ['-lc', trimmed],
-          {
-            cwd: repoPath,
-            timeout,
-            maxBuffer: 10 * 1024 * 1024,
+      for (const runner of runners) {
+        try {
+          const { stdout, stderr } = await execFileAsync(
+            runner.exe,
+            runner.args,
+            {
+              cwd: repoPath,
+              timeout,
+              maxBuffer: 10 * 1024 * 1024,
+            }
+          );
+
+          const out = truncateOutput((stdout ?? '').trim());
+          const err = truncateOutput((stderr ?? '').trim());
+          const prefix = runner.label === 'powershell' ? '[fallback: powershell]\n' : '';
+
+          if (!out && !err) {
+            return `${prefix}bash command completed with no output.`;
           }
-        );
 
-        const out = truncateOutput((stdout ?? '').trim());
-        const err = truncateOutput((stderr ?? '').trim());
+          if (out && err) {
+            return `${prefix}stdout:\n${out}\n\nstderr:\n${err}`;
+          }
 
-        if (!out && !err) {
-          return 'bash command completed with no output.';
+          return `${prefix}${out || `stderr:\n${err}`}`;
+        } catch (error) {
+          const err = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string; code?: number | string };
+          lastError = err;
+
+          if (process.platform === 'win32' && runner.label === 'bash' && isMissingBashError(err)) {
+            continue;
+          }
+
+          const stdout = truncateOutput(String(err.stdout ?? '').trim());
+          const stderr = truncateOutput(String(err.stderr ?? '').trim());
+          const details = [
+            `bash command failed: ${err.message}`,
+            stdout ? `stdout:\n${stdout}` : '',
+            stderr ? `stderr:\n${stderr}` : '',
+          ]
+            .filter(Boolean)
+            .join('\n\n');
+
+          return details;
         }
+      }
 
-        if (out && err) {
-          return `stdout:\n${out}\n\nstderr:\n${err}`;
-        }
+      if (lastError && process.platform === 'win32' && isMissingBashError(lastError)) {
+        return 'bash tool error: no working bash runtime found (checked PATH and Git Bash locations), and PowerShell fallback was unavailable.';
+      }
 
-        return out || `stderr:\n${err}`;
-      } catch (error) {
-        const err = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string; code?: number | string };
+      if (lastError?.code === 'ENOENT') {
+        return 'bash tool error: "bash" is not installed or not on PATH.';
+      }
 
-        if (err.code === 'ENOENT') {
-          return 'bash tool error: "bash" is not installed or not on PATH.';
-        }
-
-        const stdout = truncateOutput(String(err.stdout ?? '').trim());
-        const stderr = truncateOutput(String(err.stderr ?? '').trim());
+      if (lastError) {
+        const stdout = truncateOutput(String(lastError.stdout ?? '').trim());
+        const stderr = truncateOutput(String(lastError.stderr ?? '').trim());
         const details = [
-          `bash command failed: ${err.message}`,
+          `bash command failed: ${lastError.message}`,
           stdout ? `stdout:\n${stdout}` : '',
           stderr ? `stderr:\n${stderr}` : '',
         ]
@@ -75,6 +138,8 @@ export function createBashTool(repoPath: string) {
 
         return details;
       }
+
+      return 'bash tool error: command failed for an unknown reason.';
     },
     {
       name: 'bash',

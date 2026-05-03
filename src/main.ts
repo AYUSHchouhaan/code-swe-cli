@@ -17,7 +17,7 @@ const programmerResult = await programmerGraph.invoke({
   notes: '',
   messages: [],
   summary: '',
-});
+}, { recursionLimit: 100 });
 
 console.log('\nSummary:');
 console.log(programmerResult.summary);

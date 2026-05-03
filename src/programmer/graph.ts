@@ -13,7 +13,7 @@ import {
  * Conditional edge from generate-action:
  * - mark_task_complete tool call → end-conclusion
  * - other tool call              → take-action
- * - plain text (reasoning)       → reasoning-thinking
+ * - plain text response           → end-conclusion
  */
 function routeAfterGenerateAction(state: ProgrammerState): string {
   const lastAI = [...state.messages].reverse().find((m) => m.getType() === 'ai') as
@@ -23,16 +23,13 @@ function routeAfterGenerateAction(state: ProgrammerState): string {
   if (lastAI?.tool_calls && lastAI.tool_calls.length > 0) {
     const toolName = lastAI.tool_calls[0]?.name;
     if (toolName === 'mark_task_complete') {
-      console.log('  → routing to end-conclusion (mark_task_complete called)');
       return 'end-conclusion';
     }
-    console.log(`  → routing to take-action (tool: ${toolName})`);
     return 'take-action';
   }
 
-  // No tool call — model is reasoning/thinking
-  console.log('  → routing to reasoning-thinking');
-  return 'reasoning-thinking';
+  // No tool call means the model produced a direct answer; finish the run.
+  return 'end-conclusion';
 }
 
 const workflow = new StateGraph(ProgrammerStateAnnotation)

@@ -4,19 +4,17 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * Creates an edit tool that does string-replace on existing files only.
+ * Creates an edit tool that applies one or more string-replacements on an existing file.
  * For creating new files, use the "create_file" tool instead.
  */
 export function createEditTool(repoPath: string) {
   return tool(
     async ({
       filePath,
-      oldString,
-      newString,
+      edits,
     }: {
       filePath: string;
-      oldString: string;
-      newString: string;
+      edits: Array<{ oldStr: string; newStr: string }>;
     }) => {
       try {
         const fullPath = path.join(repoPath, filePath);
@@ -25,13 +23,22 @@ export function createEditTool(repoPath: string) {
           return `Error: "${filePath}" does not exist. Use the "create_file" tool to create new files.`;
         }
 
-        const content = fs.readFileSync(fullPath, 'utf-8');
-        if (!content.includes(oldString)) {
-          return `Error: The oldString was not found in "${filePath}". Make sure it matches exactly.`;
+        let content = fs.readFileSync(fullPath, 'utf-8');
+
+        for (let i = 0; i < edits.length; i++) {
+          const edit = edits[i];
+          if (!edit) continue;
+          const { oldStr, newStr } = edit;
+
+          if (!content.includes(oldStr)) {
+            return `Error: edits[${i}] oldStr was not found in "${filePath}". Make sure it matches exactly (including whitespace and indentation).`;
+          }
+
+          content = content.replace(oldStr, newStr);
         }
-        const newContent = content.replace(oldString, newString);
-        fs.writeFileSync(fullPath, newContent, 'utf-8');
-        return `Successfully updated "${filePath}".`;
+
+        fs.writeFileSync(fullPath, content, 'utf-8');
+        return `Successfully applied ${edits.length} edit(s) to "${filePath}".`;
       } catch (error) {
         return `Error editing "${filePath}": ${error instanceof Error ? error.message : String(error)}`;
       }
@@ -39,11 +46,17 @@ export function createEditTool(repoPath: string) {
     {
       name: 'edit',
       description:
-        'Edit an EXISTING file by replacing oldString with newString. The file must already exist — use "create_file" for new files.',
+        'Edit an EXISTING file by applying a list of {oldStr, newStr} replacements in order. Each oldStr must match exactly (including whitespace). Use a single call with multiple edits instead of calling this tool repeatedly for the same file.',
       schema: z.object({
         filePath: z.string().describe('File path relative to the repo root'),
-        oldString: z.string().describe('The exact string to replace (must exist in the file)'),
-        newString: z.string().describe('The new string to insert in place of oldString'),
+        edits: z.array(
+            z.object({
+              oldStr: z.string().describe('The exact string to replace (must exist in the file)'),
+              newStr: z.string().describe('The replacement string'),
+            })
+          )
+          .min(1)
+          .describe('Ordered list of replacements to apply'),
       }),
     }
   );

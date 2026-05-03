@@ -62,16 +62,6 @@ function formatArgs(args: Record<string, unknown>): string {
   return compact(JSON.stringify(args), 80);
 }
 
-function Spinner() {
-  const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-  const [frame, setFrame] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setFrame(f => (f + 1) % frames.length), 80);
-    return () => clearInterval(t);
-  }, []);
-  return <Text color="yellow">{frames[frame]!}</Text>;
-}
-
 type NewLine =
   | { kind: 'user_query'; text: string }
   | { kind: 'thinking' }
@@ -95,7 +85,7 @@ function Line({ line }: { line: LogLine }) {
     case 'thinking':
       return (
         <Box>
-          <Spinner />
+          <Text color="yellow">•</Text>
           <Text dimColor> thinking…</Text>
         </Box>
       );
@@ -151,6 +141,12 @@ export function App({
   const [lines, setLines] = useState<LogLine[]>([]);
   const [confirmQuery, setConfirmQuery] = useState<string | null>(null);
   const runIdRef = useRef(0);
+  const runningRef = useRef(false);
+
+  const setRunningSafe = (value: boolean) => {
+    runningRef.current = value;
+    setRunning(value);
+  };
 
   const addLine = (line: NewLine) => {
     setLines(prev => {
@@ -167,13 +163,13 @@ export function App({
     const runId = ++runIdRef.current;
     setInput('');
     setConfirmQuery(null);
-    setRunning(true);
+    setRunningSafe(true);
     addLine({ kind: 'user_query', text: normalized });
 
     const runner = interrupt ? onInterruptSubmit : onSubmit;
     void runner(normalized).finally(() => {
       if (runIdRef.current === runId) {
-        setRunning(false);
+        setRunningSafe(false);
       }
     });
   };
@@ -199,7 +195,7 @@ export function App({
       const query = input.trim();
       if (!query) return;
 
-      if (running) {
+      if (runningRef.current) {
         setConfirmQuery(query);
         return;
       }
@@ -285,8 +281,6 @@ export function App({
         </Box>
       )}
 
-      <StatusBar running={running} confirmQuery={confirmQuery} />
-
       <Box marginTop={1} flexDirection="column">
         <Text dimColor>{SEP}</Text>
         <Box>
@@ -304,6 +298,8 @@ export function App({
         </Box>
         <Text dimColor>{SEP}</Text>
       </Box>
+
+      <StatusBar running={running} confirmQuery={confirmQuery} />
     </Box>
   );
 }
