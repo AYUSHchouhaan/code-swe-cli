@@ -57,10 +57,10 @@ export function createBashTool(repoPath: string) {
     {
       name: 'bash',
       description:
-        'Run a command in the repository root using Windows PowerShell. Simple Windows-only tool with plain stdout/stderr output.',
+        'Run a single command in the repository root using Windows PowerShell (powershell.exe). This tool is Windows-only and returns text output from stdout/stderr; long output is truncated.',
       schema: z.object({
-        command: z.string().describe('Command to run, e.g. "Get-ChildItem src" or "npm run build".'),
-        timeoutMs: z.number().int().min(1000).max(60000).optional().describe('Optional timeout in milliseconds (1000 to 60000). Default is 12000.'),
+        command: z.string().describe('PowerShell command to execute, for example "Get-ChildItem src" or "npm run build"'),
+        timeoutMs: z.number().int().min(1000).max(60000).optional().describe('Optional execution timeout in milliseconds; clamped to 1000-60000. Default is 12000.'),
       }),
     }
   );

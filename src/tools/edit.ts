@@ -46,17 +46,17 @@ export function createEditTool(repoPath: string) {
     {
       name: 'edit',
       description:
-        'Edit an EXISTING file by applying a list of {oldStr, newStr} replacements in order. Each oldStr must match exactly (including whitespace). Use a single call with multiple edits instead of calling this tool repeatedly for the same file.',
+        'Edit one existing file by applying an ordered list of {oldStr, newStr} replacements. For each item, oldStr must match exactly (including whitespace), and only the first match is replaced. If any oldStr is missing, the tool stops and returns an error.',
       schema: z.object({
-        filePath: z.string().describe('File path relative to the repo root'),
+        filePath: z.string().describe('Path to an existing file, relative to the repository root'),
         edits: z.array(
             z.object({
-              oldStr: z.string().describe('The exact string to replace (must exist in the file)'),
-              newStr: z.string().describe('The replacement string'),
+              oldStr: z.string().describe('Exact text to find in the current file content (case and whitespace sensitive)'),
+              newStr: z.string().describe('Text to replace the first matched oldStr occurrence'),
             })
           )
           .min(1)
-          .describe('Ordered list of replacements to apply'),
+          .describe('Ordered replacements applied sequentially to the same file'),
       }),
     }
   );

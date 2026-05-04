@@ -5,33 +5,32 @@ import { promisify } from 'util';
 
 const execFileAsync = promisify(execFile);
 
+const EXCLUDE_GLOBS = [
+  '!**/node_modules/**',
+  '!**/.git/**',
+  '!**/.next/**',
+  '!**/dist/**',
+  '!**/build/**',
+  '!**/.turbo/**',
+  '!**/.vercel/**',
+  '!**/.cache/**',
+];
+
 export function createGlobTool(repoPath: string) {
   return tool(
     async ({ patterns }: { patterns: string[] }) => {
-      // Build include-glob args from the user-provided patterns
-      const includeGlobs = patterns.flatMap((p) => ['--glob', p]);
+      // Build glob args from user patterns first.
+      const userGlobs = patterns.flatMap((p) => ['--glob', p]);
+      // Apply hard excludes last so they always win.
+      const hardExcludeGlobs = EXCLUDE_GLOBS.flatMap((g) => ['--glob', g]);
 
       try {
         const { stdout } = await execFileAsync(
           'rg',
           [
             '--files',
-            // Always exclude noisy dirs
-            '--glob', '!node_modules',
-            '--glob', '!node_modules/**',
-            '--glob', '!.git',
-            '--glob', '!.git/**',
-            '--glob', '!.next',
-            '--glob', '!.next/**',
-            '--glob', '!dist',
-            '--glob', '!dist/**',
-            '--glob', '!build',
-            '--glob', '!build/**',
-            '--glob', '!.turbo',
-            '--glob', '!.vercel',
-            '--glob', '!.cache',
-            // User patterns (include filters)
-            ...includeGlobs,
+            ...userGlobs,
+            ...hardExcludeGlobs,
             '.',
           ],
           { maxBuffer: 10 * 1024 * 1024, cwd: repoPath }
@@ -59,7 +58,7 @@ export function createGlobTool(repoPath: string) {
     {
       name: 'glob',
       description:
-        'Find files by path pattern. Provide up to 7 glob patterns such as "**/src/**/*.ts" or "**/*.js" to locate files without reading their contents. Returns a list of matching file paths relative to the repo root.',
+        'Find files by path pattern. Provide up to 7 glob patterns such as "**/src/**/*.ts" or "**/*.js" to locate files without reading contents. Always excludes noisy directories like node_modules, .git, dist, and build.',
       schema: z.object({
         patterns: z
           .array(z.string())
