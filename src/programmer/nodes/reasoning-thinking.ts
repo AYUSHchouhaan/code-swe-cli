@@ -1,26 +1,32 @@
 import type { AIMessage } from '@langchain/core/messages';
+import { emitAgent } from '../../ui/events';
 import type { ProgrammerState } from '../types';
+
+function toTextContent(content: unknown): string {
+  if (typeof content === 'string') return content;
+  try {
+    return JSON.stringify(content);
+  } catch {
+    return String(content);
+  }
+}
 
 export async function reasoningThinkingNode(
   state: ProgrammerState
 ): Promise<Partial<ProgrammerState>> {
+  const lastAI = [...state.messages].reverse().find((m) => m.getType() === 'ai') as
+    | AIMessage
+    | undefined;
 
-// empty node
+  if (!lastAI) {
+    return {};
+  }
 
+  if (lastAI.tool_calls && lastAI.tool_calls.length > 0) {
+    return {};
+  }
 
-  // console.log('\n=== PROGRAMMER NODE: reasoning-thinking ===');
-
-  // const lastAI = [...state.messages].reverse().find((m) => m.getType() === 'ai') as
-  //   | AIMessage
-  //   | undefined;
-
-  // if (lastAI) {
-  //   const content =
-  //     typeof lastAI.content === 'string'
-  //       ? lastAI.content
-  //       : JSON.stringify(lastAI.content, null, 2);
-  //   // console.log('  [Model reasoning]:\n', content);
-  // }
+  emitAgent({ type: 'llm_text', text: toTextContent(lastAI.content) });
 
   return {};
 }

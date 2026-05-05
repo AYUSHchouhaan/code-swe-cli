@@ -1,6 +1,6 @@
 import { ChatOllama } from '@langchain/ollama';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
-import { createGrepTool, createReadTool, createEditTool, createNewFileTool, createGlobTool, createBashTool } from '../../tools';
+import { createGrepTool, createReadTool, createEditTool, createNewFileTool, createGlobTool, createBashTool, createMarkTaskCompleteTool } from '../../tools';
 import { emitAgent } from '../../ui/events';
 import type { ProgrammerState } from '../types';
 
@@ -19,6 +19,7 @@ Tool guide:
 - edit: Modify an existing file. Pass a list of {oldStr, newStr} pairs applied in order — use multiple entries in one call instead of calling edit repeatedly on the same file.
 - create_file: Create a new file with full content in one call.
 - bash: Run quick repo-local commands for checks (for example test/build/list/status).
+- mark_task_complete: Call only when all required work is done and no further tool/action is needed.
 
 When to use which:
 1) Known file, one or more changes: read -> edit (with all edits in one call).
@@ -39,15 +40,6 @@ function buildFirstTaskMessage(state: ProgrammerState): HumanMessage {
   );
 }
 
-function toTextContent(content: unknown): string {
-  if (typeof content === 'string') return content;
-  try {
-    return JSON.stringify(content);
-  } catch {
-    return String(content);
-  }
-}
-
 function emitResponseEvent(response: AIMessage): void {
   const toolCalls = response.tool_calls ?? [];
   if (toolCalls.length > 0) {
@@ -56,10 +48,7 @@ function emitResponseEvent(response: AIMessage): void {
       name: toolCalls[0]?.name ?? '',
       args: (toolCalls[0]?.args ?? {}) as Record<string, unknown>,
     });
-    return;
   }
-
-  emitAgent({ type: 'llm_text', text: toTextContent(response.content) });
 }
 
 
@@ -72,6 +61,7 @@ export async function generateActionNode(
   const createFileTool = createNewFileTool(state.repoPath);
   const globTool = createGlobTool(state.repoPath);
   const bashTool = createBashTool(state.repoPath);
+  const markTaskCompleteTool = createMarkTaskCompleteTool();
 
   const llm = new ChatOllama({
     model: 'qwen3-coder:480b-cloud',
@@ -80,7 +70,7 @@ export async function generateActionNode(
     baseUrl: 'http://localhost:11434',
     numCtx: 131072,
     numPredict: 32768,
-  }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool]);
+  }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool, markTaskCompleteTool]);
 
   // Google Gemini alternative — comment out Ollama above and uncomment below
   // const llm = new ChatGoogleGenerativeAI({

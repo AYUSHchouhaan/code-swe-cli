@@ -255,13 +255,13 @@ export function App({
   }, []);
 
   return (
-    <Box flexDirection="column" paddingX={1} paddingY={1}>
-      <Box>
+    <Box flexDirection="column" paddingX={2} paddingY={1}>
+      <Box marginBottom={1} paddingX={1}>
         <Text bold color="cyan">code-swe  </Text>
         <Text dimColor>{repoPath}</Text>
       </Box>
 
-      <Box flexDirection="column" marginTop={1}>
+      <Box flexDirection="column" marginTop={1} paddingLeft={1}>
         {lines.length > 0 ? (
           lines.map(l => <Line key={l.id} line={l} />)
         ) : (
@@ -281,7 +281,7 @@ export function App({
         </Box>
       )}
 
-      <Box marginTop={1} flexDirection="column">
+      <Box marginTop={2} flexDirection="column" paddingX={1}>
         <Text dimColor>{SEP}</Text>
         <Box>
           <Text bold color="cyan">❯ </Text>

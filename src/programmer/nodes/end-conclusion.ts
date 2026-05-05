@@ -38,7 +38,7 @@ export async function endConclusionNode(
   emitAgent({ type: 'thinking' });
   const response = await llm.invoke([
     new SystemMessage(
-      'You are summarising a completed coding session. Write a clear, concise summary (3-5 sentences) of all changes made.'
+      'You are summarising a completed coding session. Write a clear, concise summary (8 - 10 sentences) of what you have done .'
     ),
     new HumanMessage(
       `Original Query: "${state.query}"
