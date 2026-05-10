@@ -3,51 +3,27 @@ import { Box, Text, useInput, useApp } from 'ink';
 import { agentEvents } from './events';
 import type { AgentEvent } from './events';
 
-const SEP = '─'.repeat(62);
+const SEP = '─'.repeat(64);
 
-function StatusBar({ running, confirmQuery }: { running: boolean; confirmQuery: string | null }) {
-  if (confirmQuery) {
-    return (
-      <Box marginTop={1} flexDirection="column">
-        <Text dimColor>{SEP}</Text>
-        <Box>
-          <Text backgroundColor="yellow" color="black"> [c] continue current </Text>
-          <Text>  </Text>
-          <Text backgroundColor="red" color="white"> [o] override with typed query </Text>
-          <Text>  </Text>
-          <Text backgroundColor="gray" color="black"> [Esc] cancel prompt </Text>
-        </Box>
-        <Text dimColor>{SEP}</Text>
-      </Box>
-    );
-  }
+const TOOL_ICON: Record<string, string> = {
+  glob:               '❯❯',
+  grep:               '⌖ ',
+  read:               '  ',
+  edit:               '✎ ',
+  create_file:        '+ ',
+  bash:               '$ ',
+  mark_task_complete: '✔ ',
+};
 
-  if (running) {
-    return (
-      <Box marginTop={1} flexDirection="column">
-        <Text dimColor>{SEP}</Text>
-        <Box>
-          <Text backgroundColor="blue" color="white"> [Enter] choose continue/override </Text>
-          <Text>  </Text>
-          <Text backgroundColor="gray" color="black"> [Esc] quit </Text>
-        </Box>
-        <Text dimColor>{SEP}</Text>
-      </Box>
-    );
-  }
-
-  return (
-    <Box marginTop={1} flexDirection="column">
-      <Text dimColor>{SEP}</Text>
-      <Box>
-        <Text backgroundColor="green" color="black"> [Enter] submit query </Text>
-        <Text>  </Text>
-        <Text backgroundColor="gray" color="black"> [Esc] quit </Text>
-      </Box>
-      <Text dimColor>{SEP}</Text>
-    </Box>
-  );
-}
+const TOOL_COLOR: Record<string, string> = {
+  glob:               'blue',
+  grep:               'cyan',
+  read:               'white',
+  edit:               'yellow',
+  create_file:        'green',
+  bash:               'magenta',
+  mark_task_complete: 'green',
+};
 
 function compact(text: string, max = 200): string {
   const s = text.replace(/\s+/g, ' ').trim();
@@ -55,9 +31,9 @@ function compact(text: string, max = 200): string {
 }
 
 function formatArgs(args: Record<string, unknown>): string {
-  if (Array.isArray(args['patterns'])) return (args['patterns'] as string[]).slice(0, 2).join(', ');
+  if (Array.isArray(args['patterns'])) return (args['patterns'] as string[]).join(', ');
   if (typeof args['query'] === 'string') return compact(args['query'], 80);
-  if (Array.isArray(args['filePaths'])) return (args['filePaths'] as string[]).slice(0, 2).join(', ');
+  if (Array.isArray(args['filePaths'])) return (args['filePaths'] as string[]).join(', ');
   if (typeof args['filePath'] === 'string') return args['filePath'];
   return compact(JSON.stringify(args), 80);
 }
@@ -77,63 +53,80 @@ function Line({ line }: { line: LogLine }) {
   switch (line.kind) {
     case 'user_query':
       return (
-        <Box>
-          <Text color="cyan">you </Text>
-          <Text>{line.text}</Text>
+        <Box marginTop={1} flexDirection="column">
+          <Box>
+            <Text bold color="cyan">▸ </Text>
+            <Text bold color="white">{line.text}</Text>
+          </Box>
         </Box>
       );
+
     case 'thinking':
       return (
-        <Box>
-          <Text color="yellow">•</Text>
-          <Text dimColor> thinking…</Text>
+        <Box paddingLeft={3}>
+          <Text dimColor>· · ·</Text>
         </Box>
       );
-    case 'tool_call':
+
+    case 'tool_call': {
+      const icon = TOOL_ICON[line.name] ?? '  ';
+      const color = (TOOL_COLOR[line.name] ?? 'white') as any;
       return (
-        <Box>
-          <Text color="blue">↳ {line.name} </Text>
-          <Text dimColor>{line.args}</Text>
+        <Box paddingLeft={2} marginTop={1}>
+          <Text color={color}>{icon} </Text>
+          <Text bold color={color}>{line.name}</Text>
+          <Text dimColor>  {line.args}</Text>
         </Box>
       );
-    case 'tool_result':
+    }
+
+    case 'tool_result': {
       if (line.name === 'glob') {
-        const lines = line.result.split('\n');
+        const rows = line.result.split('\n').filter(Boolean);
+        // rows[0] is "Found N file(s) matching [...]:"
+        const header = rows[0] ?? '';
+        const files = rows.slice(1);
         return (
-          <Box flexDirection="column">
-            {lines.map((l, i) => (
+          <Box paddingLeft={5} flexDirection="column">
+            <Text dimColor>{header}</Text>
+            {files.map((f, i) => (
               <Box key={i}>
-                <Text color="green">{i === 0 ? '← ' : '  '}</Text>
-                <Text dimColor>{l}</Text>
+                <Text color="blue">{i === files.length - 1 ? '└─ ' : '├─ '}</Text>
+                <Text>{f}</Text>
               </Box>
             ))}
           </Box>
         );
       }
       return (
-        <Box>
-          <Text color="green">← </Text>
+        <Box paddingLeft={5}>
           <Text dimColor>{line.result}</Text>
         </Box>
       );
+    }
+
     case 'llm_text':
       return (
-        <Box>
-          <Text color="yellow">ai </Text>
+        <Box paddingLeft={2} marginTop={1}>
+          <Text color="magenta">◆ </Text>
           <Text dimColor>{line.text}</Text>
         </Box>
       );
+
     case 'done':
       return (
-        <Box flexDirection="column" marginTop={1}>
-          <Text bold color="green">✓ done</Text>
-          <Text dimColor>{line.summary}</Text>
+        <Box marginTop={1} flexDirection="column" paddingX={2} paddingY={0}>
+          <Text bold color="green">✓  Done</Text>
+          <Box marginTop={1}>
+            <Text>{line.summary}</Text>
+          </Box>
         </Box>
       );
+
     case 'error':
       return (
-        <Box>
-          <Text color="red">✗ {line.message}</Text>
+        <Box marginTop={1} borderStyle="round" borderColor="red" paddingX={2}>
+          <Text color="red">✗  {line.message}</Text>
         </Box>
       );
   }
@@ -253,7 +246,7 @@ export function App({
           addLine({ kind: 'llm_text', text: compact(event.text, 200) });
           break;
         case 'done':
-          addLine({ kind: 'done', summary: compact(event.summary, 400) });
+          addLine({ kind: 'done', summary: event.summary });
           break;
         case 'error':
           addLine({ kind: 'error', message: event.message });
@@ -269,50 +262,52 @@ export function App({
 
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1}>
-      <Box marginBottom={1} paddingX={1}>
-        <Text bold color="cyan">code-swe  </Text>
+
+      {/* Header */}
+      <Box marginBottom={1}>
+        <Text bold color="cyan">◈ code-swe  </Text>
         <Text dimColor>{repoPath}</Text>
       </Box>
 
-      <Box flexDirection="column" marginTop={1} paddingLeft={1}>
+      {/* Log */}
+      <Box flexDirection="column" paddingLeft={1}>
         {lines.length > 0 ? (
           lines.map(l => <Line key={l.id} line={l} />)
         ) : (
-          <Text dimColor>Waiting for your first query...</Text>
+          <Text dimColor>  Ask me anything about your codebase…</Text>
         )}
       </Box>
 
-      <Box flexGrow={1} />
-
+      {/* Interrupt confirm banner */}
       {confirmQuery && (
-        <Box marginTop={1}>
-          <Text color="yellow">Current run is active. Press </Text>
+        <Box marginTop={1} borderStyle="single" borderColor="yellow" paddingX={2}>
+          <Text color="yellow">Agent running — press </Text>
           <Text bold color="green">c</Text>
-          <Text color="yellow"> to continue current or </Text>
+          <Text color="yellow"> to keep current  or  </Text>
           <Text bold color="red">o</Text>
-          <Text color="yellow"> to stop and start: {confirmQuery}</Text>
+          <Text color="yellow"> to override with: </Text>
+          <Text italic>{confirmQuery}</Text>
         </Box>
       )}
 
-      <Box marginTop={2} flexDirection="column" paddingX={1}>
+      {/* Input bar */}
+      <Box marginTop={2} flexDirection="column">
         <Text dimColor>{SEP}</Text>
-        <Box>
+        <Box marginTop={1}>
           <Text bold color="cyan">❯ </Text>
           {input.length > 0
             ? <><Text>{input}</Text><Text inverse> </Text></>
-            : <>
-                <Text dimColor>
-                  {running ? 'running… type next query and press ' : 'type your query and press '}
-                </Text>
-                <Text color="cyan">Enter</Text>
-                <Text dimColor>{running ? ' to choose continue/override  (Esc to quit)' : '  (Esc to quit)'}</Text>
-              </>
+            : <Text dimColor>
+                {running
+                  ? 'agent running… type to queue next query  '
+                  : 'type your query and press Enter  '}
+                <Text color="cyan">(Esc to quit)</Text>
+              </Text>
           }
         </Box>
         <Text dimColor>{SEP}</Text>
       </Box>
 
-      <StatusBar running={running} confirmQuery={confirmQuery} />
     </Box>
   );
 }
