@@ -56,7 +56,9 @@ export async function takeActionNode(
     result = `Unknown tool: ${name}`;
   }
 
-  emitAgent({ type: 'tool_result', name, result: result.slice(0, 300) });
+  if (name !== 'read') {
+    emitAgent({ type: 'tool_result', name, result: result.slice(0, 300) });
+  }
 
   const toolMsg = new ToolMessage({
     tool_call_id: id ?? name,

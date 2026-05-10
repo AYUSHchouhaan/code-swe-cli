@@ -88,7 +88,6 @@ export async function generateActionNode(
       ? [systemMessage, firstTaskMessage]
       : [systemMessage, ...messageHistory.slice(-HISTORY_WINDOW)];
 
-  emitAgent({ type: 'thinking' });
   const responseMessage = await llm.invoke(inputMessages);
   if (!(responseMessage instanceof AIMessage)) {
     emitAgent({ type: 'error', message: 'Model returned non-AI message.' });
