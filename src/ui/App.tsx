@@ -66,7 +66,7 @@ type NewLine =
   | { kind: 'user_query'; text: string }
   | { kind: 'thinking' }
   | { kind: 'tool_call'; name: string; args: string }
-  | { kind: 'tool_result'; result: string }
+  | { kind: 'tool_result'; name: string; result: string }
   | { kind: 'llm_text'; text: string }
   | { kind: 'done'; summary: string }
   | { kind: 'error'; message: string };
@@ -97,6 +97,19 @@ function Line({ line }: { line: LogLine }) {
         </Box>
       );
     case 'tool_result':
+      if (line.name === 'glob') {
+        const lines = line.result.split('\n');
+        return (
+          <Box flexDirection="column">
+            {lines.map((l, i) => (
+              <Box key={i}>
+                <Text color="green">{i === 0 ? '← ' : '  '}</Text>
+                <Text dimColor>{l}</Text>
+              </Box>
+            ))}
+          </Box>
+        );
+      }
       return (
         <Box>
           <Text color="green">← </Text>
@@ -234,7 +247,7 @@ export function App({
           addLine({ kind: 'tool_call', name: event.name, args: formatArgs(event.args) });
           break;
         case 'tool_result':
-          addLine({ kind: 'tool_result', result: compact(event.result, 200) });
+          addLine({ kind: 'tool_result', name: event.name, result: event.name === 'glob' ? event.result : compact(event.result, 200) });
           break;
         case 'llm_text':
           addLine({ kind: 'llm_text', text: compact(event.text, 200) });

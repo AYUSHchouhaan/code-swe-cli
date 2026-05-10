@@ -50,7 +50,9 @@ export async function takePlanActionNode(
     result = `Error invoking ${name}: ${err instanceof Error ? err.message : String(err)}`;
   }
 
-  emitAgent({ type: 'tool_result', name, result: result.slice(0, 300) });
+  if (name !== 'read') {
+    emitAgent({ type: 'tool_result', name, result: result.slice(0, 300) });
+  }
   toolMessages.push(
     new ToolMessage({
       tool_call_id: id ?? name,

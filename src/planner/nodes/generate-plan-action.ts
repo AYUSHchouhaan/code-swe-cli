@@ -125,7 +125,6 @@ export async function generatePlanActionNode(
       ? [new SystemMessage(SYSTEM_PROMPT), firstMessage]
       : [new SystemMessage(SYSTEM_PROMPT), ...trimmedHistory];
 
-  emitAgent({ type: 'thinking' });
   const response = await llm.invoke(inputMessages) as AIMessage;
 
   const newMessages =

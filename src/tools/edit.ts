@@ -9,19 +9,14 @@ import path from 'path';
  */
 export function createEditTool(repoPath: string) {
   return tool(
-    async ({
-      filePath,
-      edits,
-    }: {
-      filePath: string;
-      edits: Array<{ oldStr: string; newStr: string }>;
+    async ({filePath,edits,}: {filePath: string;edits: Array<{ oldStr: string; newStr: string }>;
     }) => {
       try {
         const fullPath = path.join(repoPath, filePath);
 
         if (!fs.existsSync(fullPath)) {
           return `Error: "${filePath}" does not exist. Use the "create_file" tool to create new files.`;
-        }
+        } 
 
         let content = fs.readFileSync(fullPath, 'utf-8');
 

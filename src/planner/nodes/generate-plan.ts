@@ -2,7 +2,6 @@ import { ChatOllama } from '@langchain/ollama';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
-import { emitAgent } from '../../ui/events';
 import type { PlannerState, PlanStep } from '../types';
 
 const planSchema = z.object({
@@ -47,7 +46,6 @@ export async function generatePlanNode(
     })
     .join('\n\n');
 
-  emitAgent({ type: 'thinking' });
   const result = await llm.invoke([
     new SystemMessage(
       `You are a senior software engineer creating a concrete, implementation-only plan.

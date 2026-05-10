@@ -1,7 +1,6 @@
 import { ChatOllama } from '@langchain/ollama';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { emitAgent } from '../../ui/events';
 import type { PlannerState } from '../types';
 
 /**
@@ -39,7 +38,6 @@ export async function notesNode(state: PlannerState): Promise<Partial<PlannerSta
     .map((s) => `${s.index}. ${s.plan}`)
     .join('\n');
 
-  emitAgent({ type: 'thinking' });
   const response = await llm.invoke([
     new SystemMessage(
       `You are a technical writer summarising a code-planning session for a programmer.

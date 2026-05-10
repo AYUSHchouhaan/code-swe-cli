@@ -46,7 +46,7 @@ export function createGlobTool(repoPath: string) {
           return `No files found matching: ${patterns.join(', ')}`;
         }
 
-        return `Found ${files.length} file(s) matching [${patterns.join(', ')}]:\n${files.join('\n')}`;
+        return `file matching ${files.join('\n')}`;
       } catch (err: any) {
         // rg exits with code 1 when no files match — not an error
         if (err.code === 1) {
