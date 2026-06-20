@@ -18,3 +18,4 @@ export const agentEvents = new AgentEmitter();
 export function emitAgent(event: AgentEvent): void {
   agentEvents.emit('agent', event);
 }
+  

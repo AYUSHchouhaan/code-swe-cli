@@ -10,7 +10,7 @@ function buildSystemPrompt(taskDescription: string): string {
   return `You are an expert software engineer implementing this task:
 ${taskDescription}
 
-Use tools intentionally and keep calls minimal.
+Use tools intentionally and keep calls minimal. When using tools, you can also provide explanatory text to describe what you're doing and why.
 
 Tool guide:
 - glob: Find files by path pattern when you do not know exact file locations.
@@ -31,7 +31,9 @@ Guidelines:
 - Do not call tools repeatedly for the same information.
 - Prefer one focused search, then read only relevant files.
 - Keep edits minimal and preserve formatting.
-- Ensure oldStr matches exactly what was read.`;
+- Ensure oldStr matches exactly what was read.
+- You can provide both explanatory text and tool calls in the same response.
+- When you need to explain what you're doing, include that explanation in your response along with the tool calls.`;
 }
 
 function buildFirstTaskMessage(state: ProgrammerState): HumanMessage {
@@ -42,6 +44,17 @@ function buildFirstTaskMessage(state: ProgrammerState): HumanMessage {
 
 function emitResponseEvent(response: AIMessage): void {
   const toolCalls = response.tool_calls ?? [];
+  const content = response.content;
+  
+  // Emit content if present
+  if (content && typeof content === 'string' && content.trim().length > 0) {
+    emitAgent({
+      type: 'llm_text',
+      text: content,
+    });
+  }
+  
+  // Emit tool calls if present
   if (toolCalls.length > 0) {
     emitAgent({
       type: 'tool_call',
