@@ -43,6 +43,8 @@ type NewLine =
   | { kind: 'thinking' }
   | { kind: 'tool_call'; name: string; args: string }
   | { kind: 'tool_result'; name: string; result: string }
+  | { kind: 'edit_message'; message: string }
+  | { kind: 'edit_detail'; filePath: string; index: number; total: number; oldStr: string; newStr: string }
   | { kind: 'llm_text'; text: string }
   | { kind: 'done'; summary: string }
   | { kind: 'error'; message: string };
@@ -104,6 +106,30 @@ function Line({ line }: { line: LogLine }) {
         </Box>
       );
     }
+
+    case 'edit_message':
+      return (
+        <Box paddingLeft={2} marginTop={1}>
+          <Text color="yellow">📝 </Text>
+          <Text color="yellow">{compact(line.message, 150)}</Text>
+        </Box>
+      );
+
+    case 'edit_detail':
+      return (
+        <Box paddingLeft={5} flexDirection="column">
+          <Box>
+            <Text dimColor>[{line.index}/{line.total}] </Text>
+            <Text color="yellow">{line.filePath}</Text>
+          </Box>
+          <Box marginTop={0} paddingLeft={2} flexDirection="column">
+            <Text color="red">- {line.oldStr}</Text>
+          </Box>
+          <Box marginTop={0} paddingLeft={2} flexDirection="column">
+            <Text color="green">+ {line.newStr}</Text>
+          </Box>
+        </Box>
+      );
 
     case 'llm_text':
       return (
@@ -241,6 +267,12 @@ export function App({
           break;
         case 'tool_result':
           addLine({ kind: 'tool_result', name: event.name, result: event.name === 'glob' ? event.result : compact(event.result, 200) });
+          break;
+        case 'edit_message':
+          addLine({ kind: 'edit_message', message: event.message });
+          break;
+        case 'edit_detail':
+          addLine({ kind: 'edit_detail', filePath: event.filePath, index: event.index, total: event.total, oldStr: event.oldStr, newStr: event.newStr });
           break;
         case 'llm_text':
           addLine({ kind: 'llm_text', text: compact(event.text, 200) });

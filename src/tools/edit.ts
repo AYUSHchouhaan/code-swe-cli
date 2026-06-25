@@ -2,6 +2,7 @@ import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
+import { emitAgent } from '../ui/events';
 
 /**
  * Creates an edit tool that applies one or more string-replacements on an existing file.
@@ -19,15 +20,61 @@ export function createEditTool(repoPath: string) {
         } 
 
         let content = fs.readFileSync(fullPath, 'utf-8');
+        const originalContent = content;
 
         for (let i = 0; i < edits.length; i++) {
           const edit = edits[i];
           if (!edit) continue;
-          const { oldStr, newStr } = edit;
+          let { oldStr, newStr } = edit;
 
+          // Try exact match first
           if (!content.includes(oldStr)) {
-            return `Error: edits[${i}] oldStr was not found in "${filePath}". Make sure it matches exactly (including whitespace and indentation).`;
+            // Try normalizing line endings: convert CRLF to LF in both content and oldStr
+            const normalizedContent = content.replace(/\r\n/g, '\n');
+            const normalizedOldStr = oldStr.replace(/\r\n/g, '\n');
+            
+            if (normalizedContent.includes(normalizedOldStr)) {
+              // Line ending mismatch detected - use normalized versions
+              content = normalizedContent;
+              oldStr = normalizedOldStr;
+              newStr = newStr.replace(/\r\n/g, '\n');
+            } else {
+              // Still not found - emit what we tried and provide debugging info
+              emitAgent({
+                type: 'edit_detail',
+                filePath,
+                index: i + 1,
+                total: edits.length,
+                oldStr,
+                newStr,
+              });
+              
+              // Provide debugging suggestions
+              const lines = content.split('\n');
+              const keywords = oldStr.split(/[\s\n,{}[\]()]+/).filter(w => w.length > 4).slice(0, 3);
+              const matchingLines = lines
+                .map((line, idx) => ({ line, idx, score: keywords.filter(k => line.includes(k)).length }))
+                .filter(l => l.score > 0)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 2);
+
+              const suggestion = matchingLines.length > 0
+                ? `Found similar lines at: ${matchingLines.map(m => `line ${m.idx + 1}`).join(', ')}`
+                : 'No similar content found. Check for: quote type differences (single vs double), whitespace/indentation, or incomplete matches.';
+
+              return `Error: edits[${i}] oldStr not found in "${filePath}". ${suggestion}`;
+            }
           }
+
+          // Emit edit detail event to show what's being changed
+          emitAgent({
+            type: 'edit_detail',
+            filePath,
+            index: i + 1,
+            total: edits.length,
+            oldStr,
+            newStr,
+          });
 
           content = content.replace(oldStr, newStr);
         }
@@ -41,12 +88,12 @@ export function createEditTool(repoPath: string) {
     {
       name: 'edit',
       description:
-        'Edit one existing file by applying an ordered list of {oldStr, newStr} replacements. For each item, oldStr must match exactly (including whitespace), and only the first match is replaced. If any oldStr is missing, the tool stops and returns an error.',
+        'Edit one existing file by applying an ordered list of {oldStr, newStr} replacements. For each item, oldStr must match exactly (including whitespace). Automatically handles Windows (CRLF) vs Unix (LF) line ending differences.',
       schema: z.object({
         filePath: z.string().describe('Path to an existing file, relative to the repository root'),
         edits: z.array(
             z.object({
-              oldStr: z.string().describe('Exact text to find in the current file content (case and whitespace sensitive)'),
+              oldStr: z.string().describe('Exact text to find in the current file content (case and whitespace sensitive). Include full newlines for multi-line content.'),
               newStr: z.string().describe('Text to replace the first matched oldStr occurrence'),
             })
           )

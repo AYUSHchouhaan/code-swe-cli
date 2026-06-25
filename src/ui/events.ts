@@ -5,6 +5,8 @@ export type AgentEvent =
   | { type: 'thinking' }
   | { type: 'tool_call'; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; name: string; result: string }
+  | { type: 'edit_message'; message: string }
+  | { type: 'edit_detail'; filePath: string; index: number; total: number; oldStr: string; newStr: string }
   | { type: 'llm_text'; text: string }
   | { type: 'plan'; steps: Array<{ index: number; plan: string }> }
   | { type: 'task_start'; index: number; total: number; description: string }
