@@ -44,6 +44,14 @@ export async function takeActionNode(
   if (!toolCall) return { messages: [] };
   const { id, name, args } = toolCall;
 
+  // For edit tool, emit the LLM's message intent
+  if (name === 'edit' && lastAI.content && typeof lastAI.content === 'string') {
+    emitAgent({
+      type: 'edit_message',
+      message: lastAI.content,
+    });
+  }
+
   const t = toolMap[name];
   let result: string;
   if (t) {
