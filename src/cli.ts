@@ -6,6 +6,7 @@ import { render } from 'ink';
 import { App } from './ui/App';
 import { emitAgent } from './ui/events';
 import { programmerGraph } from './programmer/index';
+import { HumanMessage } from '@langchain/core/messages';
 
 const program = new Command();
 
@@ -22,6 +23,9 @@ program
     const repoPath = path.resolve(options.path);
     let activeAbortController: AbortController | null = null;
 
+    // Persist agent state between runs so conversation context accumulates
+    let currentState: any = null;
+
     const runQuery = async (query: string, interruptCurrent: boolean) => {
       if (interruptCurrent && activeAbortController) {
         activeAbortController.abort();
@@ -31,16 +35,30 @@ program
       activeAbortController = controller;
 
       try {
-        const result = await programmerGraph.invoke(
-          {
-            query,
-            repoPath,
-            notes: '',
-            messages: [],
-            summary: '',
-          },
-          { signal: controller.signal, recursionLimit: 100 }
-        );
+        // Build starting messages by appending the new user query to the
+        // previous conversation messages (if any). This ensures the LLM
+        // sees the new instruction in the chat history.
+        const userMsg = new HumanMessage(query);
+
+        const startingMessages = currentState?.messages
+          ? [...currentState.messages, userMsg]
+          : [userMsg];
+
+        const inputState = {
+          query,
+          repoPath,
+          notes: currentState?.notes ?? '',
+          messages: startingMessages,
+          summary: currentState?.summary ?? '',
+        };
+
+        const result = await programmerGraph.invoke(inputState, {
+          signal: controller.signal,
+          recursionLimit: 100,
+        });
+
+        // Save the returned state so subsequent runs reuse it
+        currentState = result;
 
         emitAgent({ type: 'done', summary: result.summary });
       } catch (err) {
