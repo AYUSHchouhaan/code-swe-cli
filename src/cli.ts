@@ -6,6 +6,7 @@ import { render } from 'ink';
 import { App } from './ui/App';
 import { emitAgent } from './ui/events';
 import { programmerGraph } from './programmer/index';
+import { sanitizeConversationMessages } from './programmer/utils';
 import { HumanMessage } from '@langchain/core/messages';
 
 const program = new Command();
@@ -40,8 +41,12 @@ program
         // sees the new instruction in the chat history.
         const userMsg = new HumanMessage(query);
 
-        const startingMessages = currentState?.messages
-          ? [...currentState.messages, userMsg]
+        const priorMessages = currentState?.messages
+          ? sanitizeConversationMessages(currentState.messages)
+          : [];
+
+        const startingMessages = priorMessages.length > 0
+          ? [...priorMessages, userMsg]
           : [userMsg];
 
         const inputState = {
