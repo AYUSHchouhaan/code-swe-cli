@@ -19,10 +19,10 @@ export async function notesNode(state: PlannerState): Promise<Partial<PlannerSta
     numPredict: 8192,
   });
 
-  // Google Gemini alternative — comment out Ollama above and uncomment below
-  // const llm = new ChatGoogleGenerativeAI({
-  //   model: 'gemini-2.5-pro-exp-03-25',
-  //   apiKey: process.env.GOOGLE_API_KEY,
+  // OpenAI alternative — comment out Ollama above and uncomment below
+  // const llm = new ChatOpenAI({
+  //   model: 'gpt-5-mini',
+  //   apiKey: process.env.OPENAI_API_KEY,
   //   temperature: 0,
   // });
 

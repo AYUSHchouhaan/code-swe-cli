@@ -22,11 +22,11 @@ export async function reasoningThinkingNode(
     return {};
   }
 
-  if (lastAI.tool_calls && lastAI.tool_calls.length > 0) {
-    return {};
-  }
+  // if (lastAI.tool_calls && lastAI.tool_calls.length > 0) {
+  //   return {};
+  // }
 
-  emitAgent({ type: 'llm_text', text: toTextContent(lastAI.content) });
+  // emitAgent({ type: 'llm_text', text: toTextContent(lastAI.content) });
 
   return {};
 }

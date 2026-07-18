@@ -1,5 +1,5 @@
 import { ChatOllama } from '@langchain/ollama';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import type { ProgrammerState } from '../types';
 
@@ -12,20 +12,20 @@ export async function endConclusionNode(
   state: ProgrammerState
 ): Promise<Partial<ProgrammerState>> {
 
-  const llm = new ChatOllama({
-    model: 'qwen3-coder:480b-cloud',
-    temperature: 0.1,
-    baseUrl: 'http://localhost:11434',
-    numCtx: 131072,
-    numPredict: 8192,
-  });
-
-  // Google Gemini alternative
-  // const llm = new ChatGoogleGenerativeAI({
-  //   model: 'gemini-2.5-pro-exp-03-25',
-  //   apiKey: process.env.GOOGLE_API_KEY,
-  //   temperature: 0,
+  // const llm = new ChatOllama({
+  //   model: 'qwen3-coder:480b-cloud',
+  //   temperature: 0.1,
+  //   baseUrl: 'http://localhost:11434',
+  //   numCtx: 131072,
+  //   numPredict: 8192,
   // });
+
+  // OpenAI alternative
+  const llm = new ChatOpenAI({
+    model: 'gpt-5-mini',
+    apiKey: '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',
+    temperature: 1,
+  });
 
   const conversationSummary = state.messages
     .slice(-40)

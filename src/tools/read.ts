@@ -9,7 +9,7 @@ import path from 'path';
 export function createReadTool(repoPath: string) {
   return tool(
     async ({ filePaths }: { filePaths: string[] }) => {
-      const files = filePaths.slice(0, 4);
+      const files = filePaths.slice(0, 10);
       const results = await Promise.all(
         files.map(async (filePath) => {
           try {
@@ -31,7 +31,7 @@ export function createReadTool(repoPath: string) {
         filePaths: z
           .array(z.string())
           .min(1)
-          .max(4)
+          .max(10)
           .describe('Array of file paths relative to the repo root (e.g. ["src/index.ts", "src/utils.ts"]). Max 4.'),
       }),
     }

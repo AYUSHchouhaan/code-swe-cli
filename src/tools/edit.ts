@@ -88,7 +88,7 @@ export function createEditTool(repoPath: string) {
     {
       name: 'edit',
       description:
-        'Edit one existing file by applying an ordered list of {oldStr, newStr} replacements. For each item, oldStr must match exactly (including whitespace). Automatically handles Windows (CRLF) vs Unix (LF) line ending differences.',
+        'Edit one existing file by applying an ordered list of {oldStr, newStr} replacements. For each item, oldStr must match exactly (including whitespace). Automatically handles Windows (CRLF) vs Unix (LF) line ending differences. dont give replacement of whole file content, only give the part that needs to be changed. for a single file where you want to edit multiple parts, provide an array of edits in the order they should be applied. and make sure old str is in the file content.',
       schema: z.object({
         filePath: z.string().describe('Path to an existing file, relative to the repository root'),
         edits: z.array(

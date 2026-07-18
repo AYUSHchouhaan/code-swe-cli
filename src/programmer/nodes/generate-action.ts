@@ -1,4 +1,5 @@
 import { ChatOllama } from '@langchain/ollama';
+import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 import { createGrepTool, createReadTool, createEditTool, createNewFileTool, createGlobTool, createBashTool, createMarkTaskCompleteTool } from '../../tools';
 import { emitAgent } from '../../ui/events';
@@ -6,6 +7,7 @@ import type { ProgrammerState } from '../types';
 
 const HISTORY_WINDOW = 30;
 
+// ...existing code...
 function buildSystemPrompt(taskDescription: string): string {
   return `You are an expert software engineer implementing this task:
 ${taskDescription}
@@ -19,7 +21,7 @@ Tool guide:
 - edit: Modify an existing file. Pass a list of {oldStr, newStr} pairs applied in order — use multiple entries in one call instead of calling edit repeatedly on the same file.
 - create_file: Create a new file with full content in one call.
 - bash: Run quick repo-local commands for checks (for example test/build/list/status).
-- mark_task_complete: Call only when all required work is done and no further tool/action is needed.
+- mark_task_complete: Call only when all required work is done and no further tool/action is needed. When you call this tool the agent will exit the work loop — do not call it unless you are certain no further edits or tool calls are necessary.
 
 When to use which:
 1) Known file, one or more changes: read -> edit (with all edits in one call).
@@ -42,9 +44,19 @@ Guidelines:
 - Keep edits minimal and preserve formatting.
 - Ensure oldStr matches exactly what was read - copy/paste is your friend.
 - You can provide both explanatory text and tool calls in the same response.
-- When you need to explain what you're doing, include that explanation in your response along with the tool calls.`;
-}
+- When you need to explain what you're doing, include that explanation in your response along with the tool calls.
 
+Avoid repetition and unnecessary verbosity:
+- Do not repeat the same reasoning or produce the same output across multiple responses.
+- If the previous turn already said essentially the same thing and no new information or tool progress was made, do not restate it again.
+- Instead, take a concrete next step: make a tool call,call 'mark_task_complete' if the task is truly complete.
+- Prefer progress over explanation when you are stuck.
+
+When the task is complete:
+- If you determine there is no further code change, verification, or tool call needed, call the 'mark_task_complete' tool (do not only state completion in text). This will exit the work loop and mark the task done.
+`;
+}
+// ...existing code...
 function buildFirstTaskMessage(state: ProgrammerState): HumanMessage {
   return new HumanMessage(
     `Query: "${state.query}"\n\nNotes:\n${state.notes || '(none)'}\n\nStart implementing this now. Go directly to the code change - do not over-investigate.`
@@ -65,10 +77,11 @@ function emitResponseEvent(response: AIMessage): void {
   
   // Emit tool calls if present
   if (toolCalls.length > 0) {
+    const firstCall = toolCalls[0];
     emitAgent({
       type: 'tool_call',
-      name: toolCalls[0]?.name ?? '',
-      args: (toolCalls[0]?.args ?? {}) as Record<string, unknown>,
+      name: firstCall?.name ?? '',
+      args: (firstCall?.args ?? {}) as Record<string, unknown>,
     });
   }
 }
@@ -85,21 +98,22 @@ export async function generateActionNode(
   const bashTool = createBashTool(state.repoPath);
   const markTaskCompleteTool = createMarkTaskCompleteTool();
 
-  const llm = new ChatOllama({
-    model: 'qwen3-coder:480b-cloud',
-    // model: 'qwen2.5-coder:7b', 
-    temperature: 0.1,
-    baseUrl: 'http://localhost:11434',
-    numCtx: 131072,
-    numPredict: 32768,
-  }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool, markTaskCompleteTool]);
+  // const llm = new ChatOllama({
+  //   model: 'qwen3-coder:480b-cloud',
+  //   // model: 'qwen2.5-coder:7b', 
+  //   temperature: 0.1,
+  //   baseUrl: 'http://localhost:11434',
+  //   numCtx: 131072,
+  //   numPredict: 32768,
+  // }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool, markTaskCompleteTool]);
 
-  // Google Gemini alternative — comment out Ollama above and uncomment below
-  // const llm = new ChatGoogleGenerativeAI({
-  //   model: 'gemini-2.5-pro-exp-03-25',
-  //   apiKey: process.env.GOOGLE_API_KEY,
-  //   temperature: 0,
-  // }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool]);
+  // OpenAI alternative — comment out Ollama above and uncomment below
+  const llm = new ChatOpenAI({
+    model: 'gpt-5-mini',
+    apiKey: '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',
+    temperature: 1,
+  }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool, markTaskCompleteTool]);
+  
 
   const messageHistory = state.messages;
   const firstTaskMessage = buildFirstTaskMessage(state);
@@ -109,6 +123,8 @@ export async function generateActionNode(
     messageHistory.length === 0
       ? [systemMessage, firstTaskMessage]
       : [systemMessage, ...messageHistory.slice(-HISTORY_WINDOW)];
+
+  // logMessageHistory removed
 
   const responseMessage = await llm.invoke(inputMessages);
   if (!(responseMessage instanceof AIMessage)) {

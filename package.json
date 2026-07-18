@@ -23,10 +23,13 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "@langchain/core": "^1.1.41",
+    "@langchain/core": "^1.2.2",
     "@langchain/google-genai": "^2.1.28",
     "@langchain/langgraph": "^1.2.9",
     "@langchain/ollama": "^1.2.6",
+    "@langchain/openai": "^1.1.41",
+    "dotenv": "^16.3.1",
+    "openai": "^4.31.0",
     "commander": "^14.0.3",
     "ink": "^3.2.0",
     "react": "^18.3.1",

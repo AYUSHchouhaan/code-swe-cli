@@ -1,5 +1,5 @@
 import { ToolMessage, AIMessage } from '@langchain/core/messages';
-import { createGrepTool, createReadTool, createEditTool, createNewFileTool, createGlobTool, createBashTool } from '../../tools';
+import { createGrepTool, createReadTool, createEditTool, createNewFileTool, createGlobTool, createBashTool, createMarkTaskCompleteTool } from '../../tools';
 import { emitAgent } from '../../ui/events';
 import type { ProgrammerState } from '../types';
 
@@ -19,6 +19,7 @@ export async function takeActionNode(
   const createFileTool = createNewFileTool(state.repoPath);
   const globTool = createGlobTool(state.repoPath);
   const bashTool = createBashTool(state.repoPath);
+  const markTaskCompleteTool = createMarkTaskCompleteTool();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const toolMap: Record<string, any> = {
@@ -28,6 +29,7 @@ export async function takeActionNode(
     edit: editTool,
     create_file: createFileTool,
     bash: bashTool,
+    mark_task_complete: markTaskCompleteTool,
   };
 
   // Find the last AI message with tool calls
