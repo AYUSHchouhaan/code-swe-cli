@@ -110,7 +110,7 @@ export async function generateActionNode(
   // OpenAI alternative — comment out Ollama above and uncomment below
   const llm = new ChatOpenAI({
     model: 'gpt-5-mini',
-    apiKey: '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',
+    apiKey: process.env.OPENAI_API_KEY,
     temperature: 1,
   }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool, markTaskCompleteTool]);
   
