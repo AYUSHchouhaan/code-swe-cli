@@ -8,6 +8,7 @@ import { emitAgent } from './ui/events';
 import { programmerGraph } from './programmer/index';
 import { sanitizeConversationMessages } from './programmer/utils';
 import { HumanMessage } from '@langchain/core/messages';
+import { applyProviderEnv, readProviderConfig, writeProviderConfig } from './config/provider';
 
 const program = new Command();
 
@@ -23,11 +24,18 @@ program
   .action(async (options: { path: string }) => {
     const repoPath = path.resolve(options.path);
     let activeAbortController: AbortController | null = null;
+    const initialProviderConfig = await readProviderConfig(repoPath);
+    applyProviderEnv(initialProviderConfig);
 
     // Persist agent state between runs so conversation context accumulates
     let currentState: any = null;
 
-    const runQuery = async (query: string, interruptCurrent: boolean) => {
+    const persistProviderConfig = async (nextConfig: typeof initialProviderConfig) => {
+      applyProviderEnv(nextConfig);
+      await writeProviderConfig(repoPath, nextConfig);
+    };
+
+    const runQuery = async (query: string, interruptCurrent: boolean, providerConfig = initialProviderConfig) => {
       if (interruptCurrent && activeAbortController) {
         activeAbortController.abort();
       }
@@ -52,6 +60,7 @@ program
         const inputState = {
           query,
           repoPath,
+          providerConfig,
           notes: currentState?.notes ?? '',
           messages: startingMessages,
           summary: currentState?.summary ?? '',
@@ -87,8 +96,10 @@ program
     const { waitUntilExit } = render(
       createElement(App, {
         repoPath,
-        onSubmit: async (query: string) => runQuery(query, false),
-        onInterruptSubmit: async (query: string) => runQuery(query, true),
+        initialProviderConfig,
+        onSaveProviderConfig: persistProviderConfig,
+        onSubmit: async (query: string, providerConfig) => runQuery(query, false, providerConfig),
+        onInterruptSubmit: async (query: string, providerConfig) => runQuery(query, true, providerConfig),
         onAbortCurrent: abortCurrentRun,
       })
     );

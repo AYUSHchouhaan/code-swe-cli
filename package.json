@@ -23,15 +23,18 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
+    "@langchain/anthropic": "^1.5.1",
     "@langchain/core": "^1.2.2",
     "@langchain/google-genai": "^2.1.28",
     "@langchain/langgraph": "^1.2.9",
     "@langchain/ollama": "^1.2.6",
     "@langchain/openai": "^1.1.41",
-    "dotenv": "^16.3.1",
-    "openai": "^4.31.0",
     "commander": "^14.0.3",
+    "dotenv": "^16.3.1",
     "ink": "^3.2.0",
+    "ink-select-input": "^4.2.2",
+    "ink-text-input": "^4.0.3",
+    "openai": "^4.31.0",
     "react": "^18.3.1",
     "zod": "^4.3.6"
   }
