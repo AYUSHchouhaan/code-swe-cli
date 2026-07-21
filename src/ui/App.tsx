@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Box, Text, useInput, useApp } from 'ink';
+import { Box, Static, Text, useInput } from 'ink';
 import { agentEvents } from './events';
 import type { AgentEvent } from './events';
 
@@ -162,12 +162,13 @@ export function App({
   repoPath,
   onSubmit,
   onInterruptSubmit,
+  onAbortCurrent,
 }: {
   repoPath: string;
   onSubmit: (query: string) => Promise<void>;
   onInterruptSubmit: (query: string) => Promise<void>;
+  onAbortCurrent: () => void;
 }) {
-  const { exit } = useApp();
   const [input, setInput] = useState('');
   const [running, setRunning] = useState(false);
   const [lines, setLines] = useState<LogLine[]>([]);
@@ -183,8 +184,7 @@ export function App({
   const addLine = (line: NewLine) => {
     setLines(prev => {
       const id = prev.length;
-      const next = [...prev, { ...line, id } as LogLine];
-      return next.length > 200 ? next.slice(-200) : next;
+      return [...prev, { ...line, id } as LogLine];
     });
   };
 
@@ -237,7 +237,15 @@ export function App({
     }
 
     if (key.escape) {
-      exit();
+      if (runningRef.current) {
+        setInput('');
+        onAbortCurrent();
+        return;
+      }
+
+      if (input.length > 0) {
+        setInput('');
+      }
       return;
     }
 
@@ -302,13 +310,15 @@ export function App({
       </Box>
 
       {/* Log */}
-      <Box flexDirection="column" paddingLeft={1}>
-        {lines.length > 0 ? (
-          lines.map(l => <Line key={l.id} line={l} />)
-        ) : (
+      {lines.length > 0 ? (
+        <Static items={lines}>
+          {(line) => <Line key={line.id} line={line} />}
+        </Static>
+      ) : (
+        <Box paddingLeft={1}>
           <Text dimColor>  Ask me anything about your codebase…</Text>
-        )}
-      </Box>
+        </Box>
+      )}
 
       {/* Interrupt confirm banner */}
       {confirmQuery && (
@@ -333,7 +343,7 @@ export function App({
                 {running
                   ? 'agent running… type to queue next query  '
                   : 'type your query and press Enter  '}
-                <Text color="cyan">(Esc to quit)</Text>
+                <Text color="cyan">(Esc/interrupt)</Text>
               </Text>
           }
         </Box>

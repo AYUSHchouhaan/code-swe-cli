@@ -29,7 +29,7 @@ function routeAfterGenerateAction(state: ProgrammerState): string {
   }
 
   // No tool call means the model produced direct text; emit it via reasoning node.
-  return 'reasoning-thinking';
+  return 'end-conclusion';
 }
 
 const workflow = new StateGraph(ProgrammerStateAnnotation)

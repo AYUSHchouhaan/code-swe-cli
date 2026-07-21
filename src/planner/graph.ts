@@ -24,15 +24,12 @@ function routeAfterContextAction(state: PlannerState): string {
   if (lastMessage?.tool_calls && lastMessage.tool_calls.length > 0) {
     const toolName = lastMessage.tool_calls[0]?.name;
     if (toolName === 'complete_planning') {
-      console.log('  → routing to generate-plan (complete_planning called)');
       return 'generate-plan';
     }
-    console.log(`  → routing to take-plan-action (tool: ${toolName})`);
     return 'take-plan-action';
   }
 
   // No tool call — model is reasoning/thinking
-  console.log('  → routing to reasoning-thinking');
   return 'reasoning-thinking';
 }
 

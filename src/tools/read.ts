@@ -26,12 +26,12 @@ export function createReadTool(repoPath: string) {
     {
       name: 'read',
       description:
-        'Read the full content of 1–4 files in parallel. Only include files that are directly relevant and you think should be read to the task. Max 4 files per call.',
+        'Read the full content of 1–6 files in parallel. Only include files that are directly relevant and you think should be read to the task. Max 4 files per call.',
       schema: z.object({
         filePaths: z
           .array(z.string())
           .min(1)
-          .max(10)
+          .max(6)
           .describe('Array of file paths relative to the repo root (e.g. ["src/index.ts", "src/utils.ts"]). Max 4.'),
       }),
     }

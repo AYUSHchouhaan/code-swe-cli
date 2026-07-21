@@ -80,11 +80,16 @@ program
       }
     };
 
+    const abortCurrentRun = () => {
+      activeAbortController?.abort();
+    };
+
     const { waitUntilExit } = render(
       createElement(App, {
         repoPath,
         onSubmit: async (query: string) => runQuery(query, false),
         onInterruptSubmit: async (query: string) => runQuery(query, true),
+        onAbortCurrent: abortCurrentRun,
       })
     );
 
