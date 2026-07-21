@@ -1,7 +1,6 @@
-import { ChatOllama } from '@langchain/ollama';
-import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import type { ProgrammerState } from '../types';
+import { createChatModel, getSelectedProviderConfig } from '../../config/provider';
 
 /**
  * Node: end-conclusion
@@ -12,20 +11,8 @@ export async function endConclusionNode(
   state: ProgrammerState
 ): Promise<Partial<ProgrammerState>> {
 
-  // const llm = new ChatOllama({
-  //   model: 'qwen3-coder:480b-cloud',
-  //   temperature: 0.1,
-  //   baseUrl: 'http://localhost:11434',
-  //   numCtx: 131072,
-  //   numPredict: 8192,
-  // });
-
-  // OpenAI alternative
-  const llm = new ChatOpenAI({
-    model: 'gpt-5-mini',
-    apiKey: process.env.OPENAI_API_KEY,
-    temperature: 1,
-  });
+  const modelConfig = getSelectedProviderConfig(state.providerConfig);
+  const llm = createChatModel(modelConfig);
 
   const conversationSummary = state.messages
     .slice(-40)

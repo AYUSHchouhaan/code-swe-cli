@@ -1,9 +1,8 @@
-import { ChatOllama } from '@langchain/ollama';
-import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 import { createGrepTool, createReadTool, createEditTool, createNewFileTool, createGlobTool, createBashTool, createMarkTaskCompleteTool } from '../../tools';
 import { emitAgent } from '../../ui/events';
 import type { ProgrammerState } from '../types';
+import { createChatModel, getSelectedProviderConfig } from '../../config/provider';
 
 const HISTORY_WINDOW = 30;
 
@@ -103,21 +102,8 @@ export async function generateActionNode(
   const bashTool = createBashTool(state.repoPath);
   const markTaskCompleteTool = createMarkTaskCompleteTool();
 
-  // const llm = new ChatOllama({
-  //   model: 'qwen3-coder:480b-cloud',
-  //   // model: 'qwen2.5-coder:7b', 
-  //   temperature: 0.1,
-  //   baseUrl: 'http://localhost:11434',
-  //   numCtx: 131072,
-  //   numPredict: 32768,
-  // }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool, markTaskCompleteTool]);
-
-  // OpenAI alternative — comment out Ollama above and uncomment below
-  const llm = new ChatOpenAI({
-    model: 'gpt-5-mini',
-    apiKey: process.env.OPENAI_API_KEY,
-    temperature: 1,
-  }).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool, markTaskCompleteTool]);
+  const modelConfig = getSelectedProviderConfig(state.providerConfig);
+  const llm = createChatModel(modelConfig).bindTools([globTool, grepTool, readTool, editTool, createFileTool, bashTool, markTaskCompleteTool]);
   
 
   const messageHistory = state.messages;
