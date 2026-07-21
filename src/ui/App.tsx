@@ -1,7 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Static, Text, useInput } from 'ink';
+import SelectInput from 'ink-select-input';
+import TextInput from 'ink-text-input';
 import { agentEvents } from './events';
 import type { AgentEvent } from './events';
+import {
+  DEFAULT_PROVIDER_MODELS,
+  PROVIDER_LABELS,
+  PROVIDER_MODEL_OPTIONS,
+  type ProviderId,
+  type ProviderRuntimeConfig,
+} from '../config/provider';
 
 const SEP = '─'.repeat(64);
 
@@ -50,6 +59,132 @@ type NewLine =
   | { kind: 'error'; message: string };
 
 type LogLine = NewLine & { id: number };
+
+type ProviderChoice = {
+  label: string;
+  value: ProviderId;
+};
+
+type ModelChoice = {
+  label: string;
+  value: string;
+};
+
+function getProviderItems(): ProviderChoice[] {
+  return (Object.keys(PROVIDER_LABELS) as ProviderId[]).map((provider) => ({
+    label: PROVIDER_LABELS[provider],
+    value: provider,
+  }));
+}
+
+function getModelItems(provider: ProviderId): ModelChoice[] {
+  const options = PROVIDER_MODEL_OPTIONS[provider] ?? [DEFAULT_PROVIDER_MODELS[provider]];
+  return options.map((model) => ({ label: model, value: model }));
+}
+
+function ProviderForm({
+  initialConfig,
+  onCancel,
+  onSave,
+}: {
+  initialConfig: ProviderRuntimeConfig;
+  onCancel: () => void;
+  onSave: (config: ProviderRuntimeConfig) => void;
+}) {
+  const [step, setStep] = useState<'provider' | 'key'>('provider');
+  const [selectedProvider, setSelectedProvider] = useState<ProviderId>(initialConfig.selectedProvider);
+  const [apiKey, setApiKey] = useState(initialConfig.providers[initialConfig.selectedProvider].apiKey);
+
+  useInput((_, key) => {
+    if (key.escape) {
+      onCancel();
+    }
+  });
+
+  const providerItems = useMemo(() => getProviderItems(), []);
+
+  const handleProviderSelect = (item: ProviderChoice) => {
+    const nextProvider = item.value;
+    setSelectedProvider(nextProvider);
+    setApiKey(initialConfig.providers[nextProvider].apiKey);
+    setStep('key');
+  };
+
+  const commit = () => {
+    const nextConfig: ProviderRuntimeConfig = {
+      ...initialConfig,
+      selectedProvider,
+      providers: {
+        ...initialConfig.providers,
+        [selectedProvider]: {
+          ...initialConfig.providers[selectedProvider],
+          apiKey,
+        },
+      },
+    };
+    onSave(nextConfig);
+  };
+
+  return (
+    <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={2} paddingY={1}>
+      <Text bold color="cyan">Provider settings</Text>
+      {step === 'provider' ? (
+        <Box marginTop={1} flexDirection="column">
+          <Text dimColor>Choose the chat provider, then enter its API key.</Text>
+          <SelectInput items={providerItems} onSelect={handleProviderSelect} />
+        </Box>
+      ) : (
+        <Box marginTop={1} flexDirection="column">
+          <Text dimColor>{PROVIDER_LABELS[selectedProvider]} API key</Text>
+          <TextInput
+            value={apiKey}
+            mask="*"
+            onChange={setApiKey}
+            onSubmit={commit}
+          />
+          <Box marginTop={1}>
+            <Text dimColor>Press Enter to save, Esc to cancel.</Text>
+          </Box>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function ModelForm({
+  provider,
+  currentModel,
+  onCancel,
+  onSave,
+}: {
+  provider: ProviderId;
+  currentModel: string;
+  onCancel: () => void;
+  onSave: (model: string) => void;
+}) {
+  useInput((_, key) => {
+    if (key.escape) {
+      onCancel();
+    }
+  });
+
+  const modelItems = useMemo(() => getModelItems(provider), [provider]);
+
+  const handleModelSelect = (item: ModelChoice) => {
+    onSave(item.value);
+  };
+
+  return (
+    <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={2} paddingY={1}>
+      <Text bold color="magenta">Model settings</Text>
+      <Box marginTop={1} flexDirection="column">
+        <Text dimColor>{PROVIDER_LABELS[provider]} model</Text>
+        <Text dimColor>Current: {currentModel}</Text>
+        <SelectInput items={modelItems} onSelect={handleModelSelect} />
+      </Box>
+    </Box>
+  );
+}
 
 function Line({ line }: { line: LogLine }) {
   switch (line.kind) {
@@ -160,21 +295,31 @@ function Line({ line }: { line: LogLine }) {
 
 export function App({
   repoPath,
+  initialProviderConfig,
+  onSaveProviderConfig,
   onSubmit,
   onInterruptSubmit,
   onAbortCurrent,
 }: {
   repoPath: string;
-  onSubmit: (query: string) => Promise<void>;
-  onInterruptSubmit: (query: string) => Promise<void>;
+  initialProviderConfig: ProviderRuntimeConfig;
+  onSaveProviderConfig: (config: ProviderRuntimeConfig) => Promise<void>;
+  onSubmit: (query: string, config: ProviderRuntimeConfig) => Promise<void>;
+  onInterruptSubmit: (query: string, config: ProviderRuntimeConfig) => Promise<void>;
   onAbortCurrent: () => void;
 }) {
   const [input, setInput] = useState('');
+  const [providerConfig, setProviderConfig] = useState(initialProviderConfig);
   const [running, setRunning] = useState(false);
   const [lines, setLines] = useState<LogLine[]>([]);
   const [confirmQuery, setConfirmQuery] = useState<string | null>(null);
+  const [showProviderForm, setShowProviderForm] = useState(false);
+  const [showModelForm, setShowModelForm] = useState(false);
   const runIdRef = useRef(0);
   const runningRef = useRef(false);
+
+  const activeProvider = providerConfig.selectedProvider;
+  const activeModel = providerConfig.providers[activeProvider].model;
 
   const setRunningSafe = (value: boolean) => {
     runningRef.current = value;
@@ -188,6 +333,41 @@ export function App({
     });
   };
 
+  const updateProviderConfig = async (nextConfig: ProviderRuntimeConfig) => {
+    setProviderConfig(nextConfig);
+    await onSaveProviderConfig(nextConfig);
+  };
+
+  const handleQuerySubmit = (query: string) => {
+    const normalized = query.trim();
+    if (!normalized) return;
+
+    const command = normalized.toLowerCase();
+    if (command === '/provider') {
+      setInput('');
+      setConfirmQuery(null);
+      setShowModelForm(false);
+      setShowProviderForm(true);
+      return;
+    }
+
+    if (command === '/model') {
+      setInput('');
+      setConfirmQuery(null);
+      setShowProviderForm(false);
+      setShowModelForm(true);
+      return;
+    }
+
+    if (runningRef.current) {
+      setConfirmQuery(normalized);
+      setInput('');
+      return;
+    }
+
+    startRun(normalized, false);
+  };
+
   const startRun = (query: string, interrupt: boolean) => {
     const normalized = query.trim();
     if (!normalized) return;
@@ -199,7 +379,7 @@ export function App({
     addLine({ kind: 'user_query', text: normalized });
 
     const runner = interrupt ? onInterruptSubmit : onSubmit;
-    void runner(normalized).finally(() => {
+    void runner(normalized, providerConfig).finally(() => {
       if (runIdRef.current === runId) {
         setRunningSafe(false);
       }
@@ -207,6 +387,14 @@ export function App({
   };
 
   useInput((char, key) => {
+    if (showProviderForm || showModelForm) {
+      if (key.escape) {
+        setShowProviderForm(false);
+        setShowModelForm(false);
+      }
+      return;
+    }
+
     if (confirmQuery) {
       const k = char.toLowerCase();
       if (k === 'c') {
@@ -227,12 +415,7 @@ export function App({
       const query = input.trim();
       if (!query) return;
 
-      if (runningRef.current) {
-        setConfirmQuery(query);
-        return;
-      }
-
-      startRun(query, false);
+      handleQuerySubmit(query);
       return;
     }
 
@@ -300,6 +483,10 @@ export function App({
     return () => { agentEvents.off('agent', handler); };
   }, []);
 
+  const footerHint = running
+    ? 'agent running… type to queue next query'
+    : 'type your query and press Enter';
+
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1}>
 
@@ -307,6 +494,21 @@ export function App({
       <Box marginBottom={1}>
         <Text bold color="cyan">◈ code-swe  </Text>
         <Text dimColor>{repoPath}</Text>
+      </Box>
+
+      <Box marginBottom={1} flexDirection="column">
+        <Box>
+          <Text bold color="cyan">Chat provider: </Text>
+          <Text>{PROVIDER_LABELS[activeProvider]}</Text>
+          <Text dimColor>  |  </Text>
+          <Text bold color="cyan">Model: </Text>
+          <Text>{activeModel}</Text>
+        </Box>
+        <Box>
+          <Text dimColor>/provider provider/key  </Text>
+          <Text dimColor>/model model  </Text>
+          <Text dimColor>Esc/interrupt</Text>
+        </Box>
       </Box>
 
       {/* Log */}
@@ -318,6 +520,39 @@ export function App({
         <Box paddingLeft={1}>
           <Text dimColor>  Ask me anything about your codebase…</Text>
         </Box>
+      )}
+
+      {showProviderForm && (
+        <ProviderForm
+          initialConfig={providerConfig}
+          onCancel={() => setShowProviderForm(false)}
+          onSave={async (nextConfig) => {
+            await updateProviderConfig(nextConfig);
+            setShowProviderForm(false);
+          }}
+        />
+      )}
+
+      {showModelForm && (
+        <ModelForm
+          provider={activeProvider}
+          currentModel={activeModel}
+          onCancel={() => setShowModelForm(false)}
+          onSave={async (nextModel) => {
+            const nextConfig: ProviderRuntimeConfig = {
+              ...providerConfig,
+              providers: {
+                ...providerConfig.providers,
+                [activeProvider]: {
+                  ...providerConfig.providers[activeProvider],
+                  model: nextModel,
+                },
+              },
+            };
+            await updateProviderConfig(nextConfig);
+            setShowModelForm(false);
+          }}
+        />
       )}
 
       {/* Interrupt confirm banner */}
@@ -337,15 +572,12 @@ export function App({
         <Text dimColor>{SEP}</Text>
         <Box marginTop={1}>
           <Text bold color="cyan">❯ </Text>
-          {input.length > 0
-            ? <><Text>{input}</Text><Text inverse> </Text></>
-            : <Text dimColor>
-                {running
-                  ? 'agent running… type to queue next query  '
-                  : 'type your query and press Enter  '}
-                <Text color="cyan">(Esc/interrupt)</Text>
-              </Text>
-          }
+          <TextInput value={input} onChange={setInput} onSubmit={(query: string) => {
+            handleQuerySubmit(query);
+          }} />
+          {input.length === 0 && (
+            <Text dimColor>  {footerHint}  <Text color="cyan">(/provider /model)</Text></Text>
+          )}
         </Box>
         <Text dimColor>{SEP}</Text>
       </Box>
