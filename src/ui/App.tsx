@@ -295,10 +295,16 @@ export function App({
             <Text dimColor>Model: </Text>
             <Text>{activeModel}</Text>
           </Box>
-          <Box>
-            <Text dimColor>/provider provider/key  </Text>
-            <Text dimColor>/model model  </Text>
-            <Text dimColor>Esc/interrupt</Text>
+          <Box marginTop={1}>
+            <Box marginRight={2}>
+              <Text color="cyan">/provider change provider</Text>
+            </Box>
+            <Box marginRight={2}>
+              <Text color="magenta">/model change model</Text>
+            </Box>
+            <Box>
+              <Text color="yellow">Esc/interrupt</Text>
+            </Box>
           </Box>
           <Text dimColor>{SEP}</Text>
         </Box>
