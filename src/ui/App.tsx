@@ -220,21 +220,6 @@ export function App({
         <Text dimColor>{repoPath}</Text>
       </Box>
 
-      <Box marginBottom={1} flexDirection="column">
-        <Box>
-          <Text bold color="cyan">Chat provider: </Text>
-          <Text>{PROVIDER_LABELS[activeProvider]}</Text>
-          <Text dimColor>  |  </Text>
-          <Text bold color="cyan">Model: </Text>
-          <Text>{activeModel}</Text>
-        </Box>
-        <Box>
-          <Text dimColor>/provider provider/key  </Text>
-          <Text dimColor>/model model  </Text>
-          <Text dimColor>Esc/interrupt</Text>
-        </Box>
-      </Box>
-
       {/* Log */}
       {lines.length > 0 ? (
         <Static items={lines}>
@@ -302,9 +287,18 @@ export function App({
                 handleQuerySubmit(query);
               }}
             />
-            {/* {input.length === 0 && (
-              <Text dimColor>  {footerHint}  <Text color="cyan">(/provider /model)</Text></Text>
-            )} */}
+          </Box>
+          <Box marginTop={1}>
+            <Text dimColor>Chat provider: </Text>
+            <Text>{PROVIDER_LABELS[activeProvider]}</Text>
+            <Text dimColor>  |  </Text>
+            <Text dimColor>Model: </Text>
+            <Text>{activeModel}</Text>
+          </Box>
+          <Box>
+            <Text dimColor>/provider provider/key  </Text>
+            <Text dimColor>/model model  </Text>
+            <Text dimColor>Esc/interrupt</Text>
           </Box>
           <Text dimColor>{SEP}</Text>
         </Box>

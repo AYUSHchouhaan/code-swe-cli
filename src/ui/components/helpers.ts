@@ -1,5 +1,3 @@
-import type { Record } from 'typescript';
-
 export function compact(text: string, max = 200): string {
   const s = text.replace(/\s+/g, ' ').trim();
   return s.length <= max ? s : s.slice(0, max) + '…';
